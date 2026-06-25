@@ -15,7 +15,6 @@ fs.readdirSync(__dirname)
     );
   })
   .forEach((file) => {
-    console.log('Cargando:', file);
     const modelDef = require(path.join(__dirname, file));
     const model = modelDef(sequelize); // cada model.js exporta una función (sequelize) => Model
     db[model.name] = model;

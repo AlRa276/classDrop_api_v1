@@ -17,24 +17,30 @@ npm init -y
 ### Dependencias de Producción
 Se instalaron las siguientes librerías principales:
 ```bash
-npm install express pg dotenv
+npm install express pg dotenv bcrypt jsonwebtoken express-validator cors sequelize
 ```
 
 - **express** (v4.18+): Framework web para manejar rutas y middleware
 - **pg** (PostgreSQL): Driver para conexión a bases de datos PostgreSQL
 - **dotenv**: Gestor de variables de entorno
+- **bcrypt**: Hash de contraseñas
+- **jsonwebtoken**: Autenticación basada en tokens JWT
+- **express-validator**: Validación de entradas
+- **cors**: Configuración de CORS
+- **sequelize**: ORM para PostgreSQL
 
-**Resultado:** 82 paquetes agregados
+**Resultado:** se agregaron dependencias requeridas para manejo de usuarios, seguridad y ORM.
 
 ### Dependencias de Desarrollo
-Se instaló nodemon como dependencia de desarrollo:
+Se instalaron las siguientes dependencias de desarrollo:
 ```bash
-npm install -D nodemon
+npm install -D nodemon sequelize-cli
 ```
 
 - **nodemon**: Reinicia automáticamente el servidor al detectar cambios en los archivos
+- **sequelize-cli**: Herramientas de Sequelize para migraciones y administración del ORM
 
-**Resultado:** 26 paquetes agregados (total: 109 paquetes)
+**Resultado:** se agregaron dependencias de desarrollo para facilitar el flujo de trabajo local.
 
 ---
 
@@ -90,12 +96,15 @@ psql -U mariana -d classdrop_v1 -h localhost
 
 ## 5. Prueba de Conexión
 
-Se ejecutó el archivo de prueba:
+Se ejecutaron los archivos de prueba:
 ```bash
 node src/testConnection.js
+node src/testModel.js
 ```
 
-Este archivo verifica la conexión exitosa entre la aplicación Node.js y la base de datos PostgreSQL.
+Estos archivos verifican:
+- la conexión entre la aplicación Node.js y PostgreSQL
+- la carga correcta de los modelos Sequelize desde `src/models`
 
 ---
 
@@ -140,12 +149,13 @@ Se configuraron 6 variables de entorno para la conexión a la base de datos:
 ✅ Base de datos PostgreSQL configurada  
 ✅ Usuario y permisos de base de datos creados  
 ✅ Conexión a la base de datos verificada  
+✅ Modelos Sequelize creados y cargados correctamente  
 
 ---
 
 ## Próximos Pasos
 
-- [ ] Implementar modelos de datos en `src/models/`
+- [x] Implementar modelos de datos en `src/models/`
 - [ ] Crear controladores en `src/controllers/`
 - [ ] Definir rutas en `src/routes/`
 - [ ] Agregar validaciones y middleware
@@ -153,3 +163,6 @@ Se configuraron 6 variables de entorno para la conexión a la base de datos:
 - [ ] Crear endpoints para CRUD de datos
 - [ ] Agregar tests unitarios
 - [ ] Documentación de API endpoints
+
+---
+

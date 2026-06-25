@@ -3,11 +3,39 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const usuarioRepository = require('../repositories/usuario.repository');
 
-const DOMINIO_VALIDO = '@upchiapas.edu.mx';
+const DOMINIO_VALIDO = '@ids.upchiapas.edu.mx';
+const DOMINIO_VALIDO_2 = '@it2id.upchiapas.edu.mx';
 const SALT_ROUNDS = 10;
 
 class AuthService {
   async registrar({ nombreCompleto, correo, contrasena }) {
+    // RN-01: correo institucional
+    if (!correo.toLowerCase().endsWith(DOMINIO_VALIDO) && !correo.toLowerCase().endsWith(DOMINIO_VALIDO_2)) {
+      const error = new Error('El correo debe ser institucional (@upchiapas.edu.mx)');
+      error.status = 400;
+      throw error;
+    }
+
+    // RN-02: no duplicados
+    const existente = await usuarioRepository.buscarPorCorreo(correo);
+    if (existente) {
+      const error = new Error('El correo ya está registrado');
+      error.status = 409;
+      throw error;
+    }
+
+    const contrasenaHash = await bcrypt.hash(contrasena, SALT_ROUNDS);
+
+    const usuario = await usuarioRepository.crear({
+      nombreCompleto,
+      correo: correo.toLowerCase(),
+      contrasenaHash,
+    });
+
+    return usuario;
+  }
+
+  async registrarAdmin({ nombreCompleto, correo, contrasena}){
     // RN-01: correo institucional
     if (!correo.toLowerCase().endsWith(DOMINIO_VALIDO)) {
       const error = new Error('El correo debe ser institucional (@upchiapas.edu.mx)');
@@ -29,6 +57,7 @@ class AuthService {
       nombreCompleto,
       correo: correo.toLowerCase(),
       contrasenaHash,
+      rol: 'admin',
     });
 
     return usuario;

@@ -15,6 +15,20 @@ class AuthController {
     }
   }
 
+  async registrarAdmin(req, res, next) {
+    try {
+      const usuario = await authService.registrarAdmin(req.body);
+      return created(res, {
+        id: usuario.id,
+        nombreCompleto: usuario.nombreCompleto,
+        correo: usuario.correo,
+        rol: usuario.rol,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async login(req, res, next) {
     try {
       const resultado = await authService.login(req.body);
