@@ -5,8 +5,71 @@ const usuarioRepository = require('../repositories/usuario.repository');
 
 const FORMATO_PERMITIDO = ['pdf', 'png', 'jpg', 'c'];
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
+const MIME_EXTENSION_MAP = {
+  'application/pdf': 'pdf',
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg'
+};
+
+function obtenerExtension(adjunto) {
+  const extensionRaw = adjunto.extension;
+  if (extensionRaw) {
+    return extensionRaw.toString().trim().toLowerCase();
+  }
+
+  const nombreOriginal = adjunto.nombreOriginal;
+  if (nombreOriginal) {
+    const match = nombreOriginal.toString().trim().toLowerCase().match(/\.([a-z0-9]+)$/);
+    if (match) {
+      return match[1];
+    }
+  }
+
+  const tipoMime = adjunto.tipoMime;
+  if (tipoMime) {
+    const mime = tipoMime.toString().split(';')[0].trim().toLowerCase();
+    if (MIME_EXTENSION_MAP[mime]) {
+      return MIME_EXTENSION_MAP[mime];
+    }
+    const partes = mime.split('/');
+    if (partes.length === 2) {
+      return partes[1] === 'jpeg' ? 'jpg' : partes[1];
+    }
+  }
+
+  return null;
+}
 
 class ArchivoService {
+  async actualizarEstado(archivoId, { estado, motivoRechazo }) {
+    const estadosValidos = ['pendiente', 'escaneando', 'revision_calidad', 'publicado', 'rechazado'];
+
+    if (!estado || !estadosValidos.includes(estado)) {
+      const error = new Error('Estado de archivo inválido');
+      error.status = 400;
+      throw error;
+    }
+
+    if (estado === 'rechazado') {
+      const motivo = motivoRechazo?.toString().trim();
+      if (!motivo) {
+        const error = new Error('Debe indicar el motivo de rechazo');
+        error.status = 400;
+        throw error;
+      }
+    }
+
+    const archivo = await archivoRepository.actualizarEstado(archivoId, estado, motivoRechazo);
+    if (!archivo) {
+      const error = new Error('Archivo no encontrado');
+      error.status = 404;
+      throw error;
+    }
+
+    return archivo;
+  }
+
   async crearArchivo({ titulo, descripcion, tipo, subidoPor, materiaId, adjuntos }) {
     if (!titulo || !materiaId || !subidoPor || !Array.isArray(adjuntos) || adjuntos.length === 0) {
       const error = new Error('Debe completar título, materia, usuario y adjuntar al menos un archivo');
@@ -29,8 +92,9 @@ class ArchivoService {
     }
 
     const archivosValidos = adjuntos.every((adjunto) => {
-      if (!adjunto.extension || !adjunto.tamanoBytes) return false;
-      return FORMATO_PERMITIDO.includes(adjunto.extension.toLowerCase());
+      const extension = obtenerExtension(adjunto);
+      if (!extension || !adjunto.tamanoBytes) return false;
+      return FORMATO_PERMITIDO.includes(extension);
     });
 
     if (!archivosValidos) {

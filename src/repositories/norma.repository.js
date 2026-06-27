@@ -16,7 +16,7 @@ class NormaRepository {
     }
     return await Norma.findAll({
       where,
-      order: [['creadoEn', 'DESC']]
+      order: [['creado_en', 'DESC']]
     });
   }
 

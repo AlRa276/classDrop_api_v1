@@ -1,9 +1,9 @@
 const { Model, DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
-    class ArchivosAdjunto extends Model {}
+    class ArchivoAdjunto extends Model {}
 
-    ArchivosAdjunto.init({
+    ArchivoAdjunto.init({
         id: {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
@@ -17,7 +17,7 @@ module.exports = (sequelize) => {
                 model: 'archivos',
                 key: 'id'
             }
-        },
+        }, 
         urlStorage: {
             type: DataTypes.TEXT,
             allowNull: false,
@@ -45,7 +45,7 @@ module.exports = (sequelize) => {
         }
     }, {
         sequelize,
-        modelName: 'ArchivosAdjunto',
+        modelName: 'ArchivoAdjunto',
         tableName: 'archivos_adjuntos',
         timestamps: true,
         createdAt: 'creado_en',
@@ -55,5 +55,12 @@ module.exports = (sequelize) => {
         ]
     });
 
-    return ArchivosAdjunto;
+    ArchivoAdjunto.associate = (db) => {
+        ArchivoAdjunto.belongsTo(db.Archivo, {
+            as: 'adjuntos',
+            foreignKey: 'archivoId'
+        });
+    }
+
+    return ArchivoAdjunto;
 };

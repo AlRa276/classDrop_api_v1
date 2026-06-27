@@ -27,6 +27,18 @@ class ArchivoController {
     }
   }
 
+  async actualizarEstado(req, res, next) {
+    try {
+      const archivo = await archivoService.actualizarEstado(req.params.id, {
+        estado: req.body.estado,
+        motivoRechazo: req.body.motivoRechazo,
+      });
+      return ok(res, archivo);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async listarPublicados(req, res, next) {
     try {
       const { materiaId, limite, offset } = req.query;

@@ -1,4 +1,4 @@
-const { Model, DataTypes } = require('sequelize');
+const { Model, DataTypes, Association } = require('sequelize');
 
 module.exports = (sequelize) => {
     class DescargasArchivo extends Model {}
@@ -43,6 +43,21 @@ module.exports = (sequelize) => {
         createdAt: 'descargado_en',
         updatedAt: false
     });
+
+    DescargasArchivo.associate = (db) => {
+        DescargasArchivo.belongsTo(db.Usuario, {
+            as: 'usuario',
+            foreignKey: 'usuarioId'
+        });
+        DescargasArchivo.belongsTo(db.Archivo, {
+            as: 'archivo',
+            foreignKey: 'archivoId'
+        });
+        DescargasArchivo.belongsTo(db.ArchivoAdjunto, {
+            as: 'adjunto',
+            foreignKey: 'adjuntoId'
+        });
+    };
 
     return DescargasArchivo;
 };

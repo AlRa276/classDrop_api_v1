@@ -42,6 +42,7 @@ CREATE TABLE materias (
     UNIQUE (nombre, cuatrimestre_id)
 );
 
+
 CREATE TABLE normas (
     id             UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     titulo         VARCHAR(200) NOT NULL,
@@ -64,6 +65,8 @@ CREATE TABLE archivos (
     publicado_en   TIMESTAMPTZ,
     creado_en      TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
+
+
 
 CREATE TABLE archivos_adjuntos (
     id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),

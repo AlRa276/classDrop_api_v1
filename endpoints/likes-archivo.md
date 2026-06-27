@@ -7,6 +7,12 @@
 - Auth: sí
 - Headers:
   - `Authorization: Bearer <token>`
+- Body:
+```json
+{
+  "archivoId": "uuid-del-archivo"
+}
+```
 
 ## Quitar like de un archivo
 - Método: `DELETE`

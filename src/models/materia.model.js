@@ -44,5 +44,12 @@ module.exports = (sequelize) => {
         ]
     });
 
+    Materia.associate = (db) => {
+        Materia.belongsTo(db.Cuatrimestre, {
+            as: 'cuatrimestre',
+            foreignKey: 'cuatrimestreId'
+        });
+    };
+
     return Materia;
 };

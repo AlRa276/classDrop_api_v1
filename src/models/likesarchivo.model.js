@@ -32,6 +32,17 @@ module.exports = (sequelize) => {
         createdAt: 'creado_en',
         updatedAt: false
     });
+    
+    LikesArchivo.associate = (db) => {
+        LikesArchivo.belongsTo(db.Usuario, {
+            as: 'usuario',
+            foreignKey: 'usuarioId'
+        });
+        LikesArchivo.belongsTo(db.Archivo, {
+            as: 'archivo',
+            foreignKey: 'archivoId'
+        });
+    };
 
     return LikesArchivo;
 };

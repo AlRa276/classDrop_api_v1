@@ -22,9 +22,9 @@ class DescargasArchivoRepository {
     return await DescargasArchivo.findAll({
       where: { archivoId },
       include: [
-        { model: Usuario, attributes: ['id', 'nombreCompleto'] }
+        { model: Usuario, as: 'usuario', attributes: ['id', 'nombreCompleto'] }
       ],
-      order: [['descargadoEn', 'DESC']]
+      order: [['descargado_en', 'DESC']]
     });
   }
 
@@ -32,9 +32,9 @@ class DescargasArchivoRepository {
     return await DescargasArchivo.findAll({
       where: { usuarioId },
       include: [
-        { model: Archivo, attributes: ['id', 'titulo'] }
+        { model: Archivo, as: 'archivo', attributes: ['id', 'titulo'] }
       ],
-      order: [['descargadoEn', 'DESC']]
+      order: [['descargado_en', 'DESC']]
     });
   }
 

@@ -40,8 +40,18 @@ class ArchivoRepository {
     if (!archivo) return null;
 
     const datos = { estado };
-    if (estado === 'publicado') datos.publicadoEn = new Date();
-    if (motivoRechazo) datos.motivoRechazo = motivoRechazo;
+
+    if (estado === 'publicado') {
+      datos.publicadoEn = new Date();
+      datos.motivoRechazo = null;
+    } else {
+      datos.publicadoEn = null;
+      if (estado === 'rechazado') {
+        datos.motivoRechazo = motivoRechazo?.trim() || null;
+      } else {
+        datos.motivoRechazo = null;
+      }
+    }
 
     return await archivo.update(datos);
   }

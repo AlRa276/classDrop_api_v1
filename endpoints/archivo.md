@@ -42,6 +42,28 @@
 }
 ```
 
+## Actualizar estado de archivo
+- Método: `PATCH`
+- Ruta: `/api/archivos/:id/estado`
+- Descripción: Cambia el estado de un archivo. Solo usuarios administradores pueden ejecutar esta acción.
+- Auth: sí
+- Headers:
+  - `Authorization: Bearer <token-admin>`
+- Body:
+```json
+{
+  "estado": "publicado"
+}
+```
+
+Ejemplo para rechazar:
+```json
+{
+  "estado": "rechazado",
+  "motivoRechazo": "El archivo no cumple con las normas de la plataforma"
+}
+```
+
 ## Eliminar archivo
 - Método: `DELETE`
 - Ruta: `/api/archivos/:id`

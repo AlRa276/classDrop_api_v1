@@ -63,6 +63,21 @@ module.exports = (sequelize) => {
             { fields: ['subido_por'] }
         ]
     });
-
+  
+    Archivo.associate = (db) => {
+        Archivo.belongsTo(db.Usuario, {
+            as: 'autor',
+            foreignKey: 'subidoPor'
+        });
+        Archivo.belongsTo(db.Materia, {
+            as: 'materia',
+            foreignKey: 'materiaId' 
+        });
+        Archivo.hasMany(db.ArchivoAdjunto, { 
+            as: 'adjuntos',
+            foreignKey: 'archivoId',
+            onDelete: 'CASCADE'            
+        });
+    };
     return Archivo;
 };
