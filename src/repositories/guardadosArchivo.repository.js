@@ -18,7 +18,7 @@ class GuardadosArchivoRepository {
       where: { usuarioId },
       include: [
         {
-          model: Archivo,
+          model: Archivo, as: 'archivo',
           attributes: ['id', 'titulo', 'descripcion', 'estado'],
           include: [
             { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] }
@@ -27,7 +27,7 @@ class GuardadosArchivoRepository {
       ],
       limit,
       offset,
-      order: [['creadoEn', 'DESC']]
+      order: [['creado_en', 'DESC']]
     });
   }
 

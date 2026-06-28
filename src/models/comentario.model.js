@@ -47,5 +47,12 @@ module.exports = (sequelize) => {
         ]
     });
 
+    Comentario.associate = (models) => {
+        Comentario.belongsTo(models.Usuario, {
+            foreignKey: 'usuarioId',
+            as: 'autor'
+        });
+    };
+
     return Comentario;
 };

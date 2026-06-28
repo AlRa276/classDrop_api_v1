@@ -9,7 +9,7 @@ class ComentarioRepository {
     return await Comentario.findAll({
       where: { archivoId, eliminado: false },
       include: [{ model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto', 'avatarUrl'] }],
-      order: [['creadoEn', 'ASC']],
+      order: [['creado_en', 'ASC']],
     });
   }
 

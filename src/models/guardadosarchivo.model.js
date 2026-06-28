@@ -33,5 +33,16 @@ module.exports = (sequelize) => {
         updatedAt: false
     });
 
+    GuardadosArchivo.associate = (models) => {
+        GuardadosArchivo.belongsTo(models.Usuario, {
+            foreignKey: 'usuarioId',
+            as: 'autor'
+        });
+        GuardadosArchivo.belongsTo(models.Archivo, {
+            foreignKey: 'archivoId',
+            as: 'archivo'
+        });
+    };
+
     return GuardadosArchivo;
 };
