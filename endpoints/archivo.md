@@ -3,10 +3,32 @@
 ## Listar archivos publicados
 - Método: `GET`
 - Ruta: `/api/archivos/publicados`
-- Descripción: Devuelve los archivos publicados. Puede filtrarse por `materiaId` y paginarse con `limite` y `offset`.
+- Descripción: Devuelve los archivos publicados. Puede filtrarse por `materiaId`, buscar por texto y paginarse con `limite` y `offset`.
 - Auth: no
 - Query params:
   - `materiaId` (opcional)
+  - `search` (opcional)
+  - `orden` (opcional)
+  - `limite` (opcional)
+  - `offset` (opcional)
+
+## Contar archivos publicados por usuario
+- Método: `GET`
+- Ruta: `/api/archivos/publicados/contador`
+- Descripción: Devuelve el total de archivos publicados por el usuario autenticado.
+- Auth: sí
+- Headers:
+  - `Authorization: Bearer <token>`
+
+## Listar mis archivos
+- Método: `GET`
+- Ruta: `/api/archivos/mis-archivos`
+- Descripción: Devuelve los archivos creados por el usuario autenticado, pudiendo filtrar por estado y paginar.
+- Auth: sí
+- Headers:
+  - `Authorization: Bearer <token>`
+- Query params:
+  - `estado` (opcional)
   - `limite` (opcional)
   - `offset` (opcional)
 

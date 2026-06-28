@@ -28,6 +28,15 @@ class GuardadosArchivoController {
       next(err);
     }
   }
+
+  async contarPorUsuario(req, res, next) {
+    try {
+      const total = await guardadosArchivoService.contarPorUsuario(req.usuario.id);
+      return ok(res, { total });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new GuardadosArchivoController();

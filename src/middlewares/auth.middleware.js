@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
+const tokenRevocadoRepository = require('../repositories/tokenRevocado.repository');
+const { hashToken } = require('../utils/tokenHash');
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     const error = new Error('Token de autenticación no proporcionado');
@@ -11,7 +13,16 @@ function authMiddleware(req, res, next) {
   const token = authHeader.split(' ')[1];
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
+
+    const revocado = await tokenRevocadoRepository.existe(hashToken(token));
+    if (revocado) {
+      const error = new Error('La sesión fue cerrada, inicia sesión de nuevo');
+      error.status = 401;
+      return next(error);
+    }
+
     req.usuario = payload;
+    req.token = token;
     return next();
   } catch (err) {
     const error = new Error('Token inválido o expirado');

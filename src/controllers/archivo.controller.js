@@ -41,13 +41,38 @@ class ArchivoController {
 
   async listarPublicados(req, res, next) {
     try {
-      const { materiaId, limite, offset } = req.query;
+      const { materiaId, limite, offset, search, orden } = req.query;
       const resultado = await archivoService.listarPublicados({
         materiaId,
+        search,
+        orden,
         limite: limite ? Number(limite) : 20,
         offset: offset ? Number(offset) : 0,
       });
       return ok(res, resultado);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async misArchivos(req, res, next) {
+    try {
+      const { estado, limite, offset } = req.query;
+      const resultado = await archivoService.listarPorUsuario(req.usuario.id, {
+        estado,
+        limite: limite ? Number(limite) : 20,
+        offset: offset ? Number(offset) : 0,
+      });
+      return ok(res, resultado);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async contarPublicados(req, res, next) {
+    try {
+      const total = await archivoService.contarPublicadosPorUsuario(req.usuario.id);
+      return ok(res, { total });
     } catch (err) {
       next(err);
     }

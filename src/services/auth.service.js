@@ -2,6 +2,8 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const usuarioRepository = require('../repositories/usuario.repository');
+const tokenRevocadoRepository = require('../repositories/tokenRevocado.repository');
+const { hashToken } = require('../utils/tokenHash');
 
 const DOMINIO_VALIDO = '@ids.upchiapas.edu.mx';
 const DOMINIO_VALIDO_2 = '@it2id.upchiapas.edu.mx';
@@ -116,6 +118,19 @@ class AuthService {
       rol: usuario.rol,
       avatarUrl: usuario.avatarUrl,
     };
+  }
+
+  async cerrarSesion(usuarioId, token) {
+    const decoded = jwt.decode(token);
+    if (!decoded || !decoded.exp) {
+      const error = new Error('Token inválido');
+      error.status = 400;
+      throw error;
+    }
+
+    const expiraEn = new Date(decoded.exp * 1000);
+    await tokenRevocadoRepository.revocar(hashToken(token), usuarioId, expiraEn);
+    return true;
   }
 }
 

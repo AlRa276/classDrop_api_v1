@@ -13,6 +13,20 @@
 }
 ```
 
+## Registro de administrador
+- Método: `POST`
+- Ruta: `/api/auth/registro-admin`
+- Descripción: Registra un nuevo usuario con rol de administrador.
+- Auth: no
+- Body:
+```json
+{
+  "nombreCompleto": "Admin Usuario",
+  "correo": "admin@upchiapas.edu.mx",
+  "contrasena": "contraseñaSegura"
+}
+```
+
 ## Login
 - Método: `POST`
 - Ruta: `/api/auth/login`
@@ -25,9 +39,18 @@
 }
 ```
 
-## Perfil (pendiente de activar)
+## Perfil
 - Método: `GET`
 - Ruta: `/api/auth/perfil`
 - Descripción: Obtiene los datos del usuario autenticado.
+- Auth: sí
+- Headers:
+  - `Authorization: Bearer <token>`
+
+## Logout
+- Método: `POST`
+- Ruta: `/api/auth/logout`
+- Descripción: Cierra la sesión del usuario autenticado.
+- Auth: sí
 - Headers:
   - `Authorization: Bearer <token>`

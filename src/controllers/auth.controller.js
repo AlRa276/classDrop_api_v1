@@ -47,6 +47,15 @@ class AuthController {
       next(err);
     }
   }
+
+  async logout(req, res, next) {
+    try {
+      await authService.cerrarSesion(req.usuario.id, req.token);
+      return ok(res, { mensaje: 'Sesión cerrada correctamente' });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new AuthController();

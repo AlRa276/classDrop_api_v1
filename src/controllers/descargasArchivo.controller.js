@@ -32,6 +32,15 @@ class DescargasArchivoController {
       next(err);
     }
   }
+
+  async contarPorUsuario(req, res, next) {
+    try {
+      const total = await descargasArchivoService.contarPorUsuario(req.usuario.id);
+      return ok(res, { total });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new DescargasArchivoController();

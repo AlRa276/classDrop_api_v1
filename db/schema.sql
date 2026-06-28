@@ -8,6 +8,8 @@ CREATE TYPE tipo_archivo            AS ENUM ('pdf', 'docx', 'url', 'otro');
 CREATE TYPE estado_norma            AS ENUM ('activa', 'inactiva');
 CREATE TYPE estado_reporte           AS ENUM ('pendiente', 'resuelto', 'descartado');
 CREATE TYPE tipo_contenido_reportado AS ENUM ('archivo', 'comentario');
+CREATE TYPE categoria_politica       AS ENUM ('privacidad', 'seguridad', 'reglamento_interno', 'terminos_uso', 'general');
+CREATE TYPE nombre_etapa_publicacion AS ENUM ('archivo_recibido', 'escaneo_seguridad', 'revision_calidad', 'publicacion');
 
 CREATE TABLE usuarios (
     id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -20,6 +22,15 @@ CREATE TABLE usuarios (
     creado_en       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     activo          BOOLEAN      NOT NULL DEFAULT TRUE
 );
+
+CREATE TABLE tokens_revocados (
+    id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    token_hash  VARCHAR(64)  NOT NULL UNIQUE,
+    usuario_id  UUID         NOT NULL REFERENCES usuarios(id),
+    expira_en   TIMESTAMPTZ  NOT NULL,
+    creado_en   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
 
 CREATE TABLE cuatrimestres (
     id     SMALLINT    PRIMARY KEY,   -- de 1 a 10
@@ -53,8 +64,22 @@ CREATE TABLE normas (
     actualizado_en TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE politicas (
+    id             UUID                PRIMARY KEY DEFAULT gen_random_uuid(),
+    categoria      categoria_politica  NOT NULL DEFAULT 'general',
+    titulo         VARCHAR(150)        NOT NULL,
+    contenido      TEXT                NOT NULL,
+    icono          VARCHAR(50),
+    es_principal   BOOLEAN             NOT NULL DEFAULT FALSE,
+    orden          SMALLINT            NOT NULL DEFAULT 0,
+    activo         BOOLEAN             NOT NULL DEFAULT TRUE,
+    creado_en      TIMESTAMPTZ         NOT NULL DEFAULT NOW(),
+    actualizado_en TIMESTAMPTZ         NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE archivos (
     id             UUID           PRIMARY KEY DEFAULT gen_random_uuid(),
+--archivo_id     UUID           UNIQUE REFERENCES archivos_adjuntos(id) ON DELETE SET NULL,  
     titulo         VARCHAR(200)   NOT NULL,
     descripcion    TEXT,
     tipo           tipo_archivo   NOT NULL DEFAULT 'pdf',
@@ -146,15 +171,18 @@ CREATE TABLE moderaciones_ia (
     creado_en    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
---CREATE TABLE etapas_publicacion (
---id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
---archivo_id     UUID        NOT NULL REFERENCES archivos(id) ON DELETE CASCADE,
---etapa          VARCHAR(60) NOT NULL,   -- 'Archivo Recibido', 'Escaneo de Seguridad IA', etc.
---completado     BOOLEAN     NOT NULL DEFAULT FALSE,
---progreso       SMALLINT,              -- 0-100 para etapas en curso (ej. escaneo 45 %)
---actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
---);
-
+ 
+CREATE TABLE etapas_publicacion (
+    id             UUID                     PRIMARY KEY DEFAULT gen_random_uuid(),
+    archivo_id     UUID                     NOT NULL REFERENCES archivos(id) ON DELETE CASCADE,
+    etapa          nombre_etapa_publicacion NOT NULL,
+    orden          SMALLINT                 NOT NULL,   -- 1 Archivo Recibido, 2 Escaneo, 3 Revisión, 4 Publicación
+    completado     BOOLEAN                  NOT NULL DEFAULT FALSE,
+    progreso       SMALLINT,                             -- 0-100 para etapas en curso (ej. escaneo 45 %)
+    actualizado_en TIMESTAMPTZ              NOT NULL DEFAULT NOW(),
+    UNIQUE (archivo_id, etapa)
+);
+ 
 
 
 -- vistas
@@ -196,3 +224,7 @@ CREATE INDEX idx_adjuntos_archivo        ON archivos_adjuntos(archivo_id);
 CREATE INDEX idx_comentarios_archivo     ON comentarios(archivo_id);
 CREATE INDEX idx_reportes_estado         ON reportes(estado);
 CREATE INDEX idx_materias_cuatrimestre   ON materias(cuatrimestre_id);
+CREATE INDEX idx_tokens_revocados_expira_en ON tokens_revocados(expira_en);
+CREATE INDEX idx_politicas_categoria ON politicas(categoria);
+CREATE INDEX idx_etapas_publicacion_archivo ON etapas_publicacion(archivo_id);
+ 

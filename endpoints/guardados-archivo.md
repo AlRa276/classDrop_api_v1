@@ -23,3 +23,11 @@
 - Auth: sí
 - Headers:
   - `Authorization: Bearer <token>`
+
+## Contar archivos guardados por usuario
+- Método: `GET`
+- Ruta: `/api/guardados-archivo/usuario/contador`
+- Descripción: Devuelve el total de archivos guardados por el usuario autenticado.
+- Auth: sí
+- Headers:
+  - `Authorization: Bearer <token>`

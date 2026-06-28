@@ -7,5 +7,6 @@ router.post('/registro', authController.registrar);
 router.post('/registro-admin', authController.registrarAdmin);
 router.post('/login', authController.login);
 router.get('/perfil', authMiddleware, authController.perfil); // se activa cuando tengamos el middleware de JWT
+router.post('/logout', authMiddleware, authController.logout);
 
 module.exports = router;

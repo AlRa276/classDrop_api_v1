@@ -21,6 +21,12 @@
 - Descripción: Devuelve las descargas realizadas por el usuario autenticado.
 - Auth: sí
 
+## Contar descargas del usuario
+- Método: `GET`
+- Ruta: `/api/descargas-archivo/usuario/contador`
+- Descripción: Devuelve el total de descargas realizadas por el usuario autenticado.
+- Auth: sí
+
 ## Listar descargas por archivo
 - Método: `GET`
 - Ruta: `/api/descargas-archivo/archivo/:archivoId`

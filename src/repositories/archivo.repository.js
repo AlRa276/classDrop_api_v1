@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const { Archivo, Usuario, Materia, ArchivoAdjunto, Comentario } = require('../models');
 
 class ArchivoRepository {
@@ -15,9 +16,12 @@ class ArchivoRepository {
     });
   }
 
-  async listarPublicados({ materiaId, limite = 20, offset = 0 } = {}) {
+  async listarPublicados({ materiaId, search, orden = 'recientes', limite = 20, offset = 0 } = {}) {
     const where = { estado: 'publicado' };
     if (materiaId) where.materiaId = materiaId;
+    if (search) where.titulo = { [Op.iLike]: `%${search}%` };
+
+    const direccion = orden === 'antiguos' ? 'ASC' : 'DESC';
 
     return await Archivo.findAndCountAll({
       where,
@@ -27,12 +31,21 @@ class ArchivoRepository {
       ],
       limit: limite,
       offset,
-      order: [['publicadoEn', 'DESC']],
+      order: [['createdAt', direccion]],
     });
   }
 
-  async listarPorUsuario(usuarioId) {
-    return await Archivo.findAll({ where: { subidoPor: usuarioId } });
+  async listarPorUsuario(usuarioId, { estado, limite = 20, offset = 0 } = {}) {
+    const where = { subidoPor: usuarioId };
+    if (estado) where.estado = estado;
+
+    return await Archivo.findAndCountAll({
+      where,
+      include: [{ model: Materia, as: 'materia' }],
+      limit: limite,
+      offset,
+      order: [['createdAt', 'DESC']],
+    });
   }
 
   async actualizarEstado(id, estado, motivoRechazo = null) {

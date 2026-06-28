@@ -4,6 +4,8 @@ const archivoController = require('../controllers/archivo.controller');
 const { authMiddleware, adminMiddleware } = require('../middlewares/auth.middleware');
 
 router.get('/publicados', archivoController.listarPublicados);
+router.get('/publicados/contador', authMiddleware, archivoController.contarPublicados);
+router.get('/mis-archivos', authMiddleware, archivoController.misArchivos);
 router.patch('/:id/estado', authMiddleware, adminMiddleware, archivoController.actualizarEstado);
 router.get('/:id', archivoController.obtenerPorId);
 router.post('/', authMiddleware, archivoController.crear);

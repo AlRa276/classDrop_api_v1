@@ -148,6 +148,14 @@ class ArchivoService {
     return await archivoRepository.listarPublicados(params);
   }
 
+  async listarPorUsuario(usuarioId, params) {
+    return await archivoRepository.listarPorUsuario(usuarioId, params);
+  }
+
+  async contarPublicadosPorUsuario(usuarioId) {
+    return await archivoRepository.contarPorUsuario(usuarioId, 'publicado');
+  }
+
   async eliminarArchivo(usuarioId, archivoId) {
     const archivo = await archivoRepository.buscarPorId(archivoId);
     if (!archivo) {
