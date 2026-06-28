@@ -33,7 +33,7 @@ module.exports = (sequelize) => {
                 key: 'id'
             }
         }
-    }, {
+    }, { 
         sequelize,
         modelName: 'ModeracionIA',
         tableName: 'moderaciones_ia',
@@ -42,5 +42,9 @@ module.exports = (sequelize) => {
         updatedAt: false
     });
 
+    ModeracionIA.associate = (models) => {
+        ModeracionIA.belongsTo(models.Archivo, { foreignKey: 'archivoId', as: 'archivo' });
+        ModeracionIA.belongsTo(models.Usuario, { foreignKey: 'revisadoPor', as: 'revisor' });
+    }
     return ModeracionIA;
 };

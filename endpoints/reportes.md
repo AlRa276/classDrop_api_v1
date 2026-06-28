@@ -11,7 +11,7 @@
 ```json
 {
   "tipoContenido": "archivo",
-  "archivoId": "uuid-del-archivo",
+  "archivoId": "uuid-del-archivo", 
   "puntuacion": 4
 }
 ```

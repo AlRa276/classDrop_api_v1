@@ -1,12 +1,12 @@
-const { ModeracionIa } = require('../models');
+const { ModeracionIA } = require('../models');
 
 class ModeracionIaRepository {
   async crear(datos) {
-    return await ModeracionIa.create(datos);
+    return await ModeracionIA.create(datos);
   }
 
   async listarPorArchivo(archivoId) {
-    return await ModeracionIa.findAll({ where: { archivoId } });
+    return await ModeracionIA.findAll({ where: { archivoId } });
   }
 }
 

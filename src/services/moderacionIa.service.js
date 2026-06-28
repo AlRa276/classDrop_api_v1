@@ -12,7 +12,7 @@ class ModeracionIaService {
       archivoId,
       motivoFlag,
       aprobado,
-      revisadoPor,
+      revisadoPor
     });
   }
 

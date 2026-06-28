@@ -46,7 +46,7 @@ module.exports = (sequelize) => {
             type: DataTypes.ENUM('pendiente', 'resuelto', 'descartado'),
             defaultValue: 'pendiente'
         },
-        resoltoPor: {
+        resueltoPor: {
             type: DataTypes.UUID,
             field: 'resuelto_por',
             references: {
@@ -74,5 +74,23 @@ module.exports = (sequelize) => {
         ]
     });
 
+    Reporte.associate = (models) => {
+        Reporte.belongsTo(models.Usuario, {
+            foreignKey: 'reportadoPor',
+            as: 'reportador'
+        });
+        Reporte.belongsTo(models.Usuario, {
+            foreignKey: 'resueltoPor',
+            as: 'resolutor'
+        });
+        Reporte.belongsTo(models.Archivo, {
+            foreignKey: 'archivoId',
+            as: 'archivo'
+        });
+        Reporte.belongsTo(models.Comentario, {
+            foreignKey: 'comentarioId',
+            as: 'comentario'
+        });
+    };
     return Reporte;
 };
