@@ -14,6 +14,8 @@ const guardadosArchivoRoutes = require('./routes/guardadosArchivo.routes');
 const reporteRoutes = require('./routes/reporte.routes');
 const moderacionIaRoutes = require('./routes/moderacionIa.routes');
 const normasRoutes = require('./routes/normas.routes');
+const politicasRoutes = require('./routes/politica.routes');
+const etapasPublicacionRoutes = require('./routes/etapaPublicacion.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -37,7 +39,8 @@ app.use('/api/guardados-archivo', guardadosArchivoRoutes);
 app.use('/api/reportes', reporteRoutes);
 app.use('/api/moderacion-ia', moderacionIaRoutes);
 app.use('/api/normas', normasRoutes);
-
+app.use('/api/politicas', politicasRoutes);
+app.use('/api/etapas-publicacion', etapasPublicacionRoutes);
 // El errorHandler SIEMPRE va después de las rutas
 app.use(errorHandler);
 

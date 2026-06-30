@@ -2,6 +2,7 @@ const archivoRepository = require('../repositories/archivo.repository');
 const archivoAdjuntoRepository = require('../repositories/archivoAdjunto.repository');
 const materiaRepository = require('../repositories/materia.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
+const etapaPublicacionService = require('./etapaPublicacion.service');
 
 const FORMATO_PERMITIDO = ['pdf', 'png', 'jpg', 'c'];
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
@@ -130,7 +131,7 @@ class ArchivoService {
     }));
 
     await archivoAdjuntoRepository.crearMultiples(listaAdjuntos);
-
+    await etapaPublicacionService.inicializar(archivo.id);
     return archivo;
   }
 

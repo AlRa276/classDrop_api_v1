@@ -4,13 +4,8 @@ const { Politica } = require('../models');
 class PoliticaRepository {
   async listar(filtro = {}) {
     const where = {};
-
-    if (filtro.categoria) {
-      where.categoria = filtro.categoria;
-    }
-    if (filtro.soloActivas) {
-      where.activo = true;
-    }
+    if (filtro.categoria) where.categoria = filtro.categoria;
+    if (filtro.soloActivas) where.activo = true;
 
     return await Politica.findAll({
       where,
@@ -18,17 +13,13 @@ class PoliticaRepository {
     });
   }
 
-  async buscarPorId(id) {
-    return await Politica.findByPk(id);
-  }
+  async buscarPorId(id) { return await Politica.findByPk(id); }
 
   async obtenerPrincipal() {
     return await Politica.findOne({ where: { esPrincipal: true, activo: true } });
   }
 
-  async crear(datos) {
-    return await Politica.create(datos);
-  }
+  async crear(datos) { return await Politica.create(datos); }
 
   async actualizar(id, datos) {
     const politica = await this.buscarPorId(id);
@@ -45,9 +36,7 @@ class PoliticaRepository {
 
   async desmarcarPrincipales(exceptoId = null) {
     const where = { esPrincipal: true };
-    if (exceptoId) {
-      where.id = { [Op.ne]: exceptoId };
-    }
+    if (exceptoId) where.id = { [Op.ne]: exceptoId };
     return await Politica.update({ esPrincipal: false }, { where });
   }
 }
