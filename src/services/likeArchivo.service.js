@@ -1,4 +1,5 @@
 const likeArchivoRepository = require('../repositories/likeArchivo.repository');
+const dislikeArchivoRepository = require('../repositories/dislikeArchivo.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
 const archivoRepository = require('../repositories/archivo.repository');
 
@@ -23,6 +24,12 @@ class LikeArchivoService {
       const error = new Error('Ya has dado like a este archivo');
       error.status = 409;
       throw error;
+    }
+
+    // Un like quita el dislike existente, si lo hay (mutuamente excluyentes)
+    const yaLeDisgustaba = await dislikeArchivoRepository.existe(usuarioId, archivoId);
+    if (yaLeDisgustaba) {
+      await dislikeArchivoRepository.eliminar(usuarioId, archivoId);
     }
 
     return await likeArchivoRepository.crear(usuarioId, archivoId);

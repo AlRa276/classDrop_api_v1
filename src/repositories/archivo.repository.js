@@ -1,5 +1,28 @@
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 const { Archivo, Usuario, Materia, ArchivoAdjunto, Comentario } = require('../models');
+
+// Contadores calculados con subconsultas correlacionadas, para no hacer N+1 peticiones
+// desde el front. Se agregan como columnas extra junto a los atributos normales de Archivo.
+const ATRIBUTOS_CON_CONTADORES = {
+  include: [
+    [
+      Sequelize.literal(`(SELECT COUNT(*) FROM likes_archivos WHERE likes_archivos.archivo_id = "Archivo"."id")`),
+      'totalLikes',
+    ],
+    [
+      Sequelize.literal(`(SELECT COUNT(*) FROM dislikes_archivos WHERE dislikes_archivos.archivo_id = "Archivo"."id")`),
+      'totalDislikes',
+    ],
+    [
+      Sequelize.literal(`(SELECT COUNT(*) FROM descargas_archivos WHERE descargas_archivos.archivo_id = "Archivo"."id")`),
+      'totalDescargas',
+    ],
+    [
+      Sequelize.literal(`(SELECT COUNT(*) FROM comentarios WHERE comentarios.archivo_id = "Archivo"."id" AND comentarios.eliminado = false)`),
+      'totalComentarios',
+    ],
+  ],
+};
 
 class ArchivoRepository {
   async crear(datos) {
@@ -8,6 +31,7 @@ class ArchivoRepository {
 
   async buscarPorId(id) {
     return await Archivo.findByPk(id, {
+      attributes: ATRIBUTOS_CON_CONTADORES,
       include: [
         { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] },
         { model: Materia, as: 'materia' },
@@ -25,6 +49,7 @@ class ArchivoRepository {
 
     return await Archivo.findAndCountAll({
       where,
+      attributes: ATRIBUTOS_CON_CONTADORES,
       include: [
         { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] },
         { model: Materia, as: 'materia' },
@@ -32,6 +57,7 @@ class ArchivoRepository {
       limit: limite,
       offset,
       order: [['createdAt', direccion]],
+      subQuery: false,
     });
   }
 
@@ -41,10 +67,12 @@ class ArchivoRepository {
 
     return await Archivo.findAndCountAll({
       where,
+      attributes: ATRIBUTOS_CON_CONTADORES,
       include: [{ model: Materia, as: 'materia' }],
       limit: limite,
       offset,
       order: [['createdAt', 'DESC']],
+      subQuery: false,
     });
   }
 

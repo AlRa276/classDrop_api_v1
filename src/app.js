@@ -16,6 +16,7 @@ const moderacionIaRoutes = require('./routes/moderacionIa.routes');
 const normasRoutes = require('./routes/normas.routes');
 const politicasRoutes = require('./routes/politica.routes');
 const etapasPublicacionRoutes = require('./routes/etapaPublicacion.routes');
+const dislikeArchivoRoutes = require('./routes/dislikeArchivo.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -41,6 +42,7 @@ app.use('/api/v1/moderaciones', moderacionIaRoutes);
 app.use('/api/v1/normas', normasRoutes);
 app.use('/api/v1/politicas', politicasRoutes);
 app.use('/api/v1/etapas', etapasPublicacionRoutes);//etapas de publicacion de archivos
+app.use('/api/v1/dislikes', dislikeArchivoRoutes);
 // El errorHandler SIEMPRE va después de las rutas
 app.use(errorHandler);
 

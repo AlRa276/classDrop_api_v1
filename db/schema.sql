@@ -111,6 +111,13 @@ CREATE TABLE likes_archivos (
     creado_en  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (usuario_id, archivo_id)
 );
+--nuevo
+CREATE TABLE dislikes_archivos (
+    usuario_id UUID        NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    archivo_id UUID        NOT NULL REFERENCES archivos(id) ON DELETE CASCADE,
+    creado_en  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (usuario_id, archivo_id)
+);
 
 CREATE TABLE descargas_archivos (
     id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -195,11 +202,13 @@ SELECT
     a.titulo,
     a.materia_id,
     COUNT(DISTINCT la.usuario_id)  AS total_likes,
+    COUNT(DISTINCT dla.usuario_id) AS total_dislikes,
     COUNT(DISTINCT da.id)          AS total_descargas,
     COUNT(DISTINCT c.id)           AS total_comentarios,
     COUNT(DISTINCT adj.id)         AS total_adjuntos
 FROM archivos a
 LEFT JOIN likes_archivos      la  ON la.archivo_id  = a.id
+LEFT JOIN dislikes_archivos   dla ON dla.archivo_id = a.id
 LEFT JOIN descargas_archivos  da  ON da.archivo_id  = a.id
 LEFT JOIN comentarios         c   ON c.archivo_id   = a.id AND NOT c.eliminado
 LEFT JOIN archivos_adjuntos   adj ON adj.archivo_id = a.id
