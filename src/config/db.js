@@ -10,7 +10,15 @@ const sequelize = new Sequelize(
     port: process.env.DB_PORT,
     dialect: 'postgres',
     logging: false, // ponlo en console.log si quieres ver las queries SQL generadas
+
+    dialectOptions: {
+          ssl: {
+            require: true,
+            rejectUnauthorized: false // Evita errores de certificados autofirmados en Render
+          }
+        }
   }
+  
 );
 
 module.exports = sequelize;
