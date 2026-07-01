@@ -27,20 +27,20 @@ app.get('/', (req, res) => {
   res.json({ mensaje: 'API ClassDrop funcionando 🚀' });
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/cuatrimestres', cuatrimestresRoutes);
-app.use('/api/materias', materiasRoutes);
-app.use('/api/archivos', archivosRoutes);
-app.use('/api/comentarios', comentariosRoutes);
-app.use('/api/likes-archivo', likesArchivoRoutes);
-app.use('/api/likes-comentario', likesComentarioRoutes);
-app.use('/api/descargas-archivo', descargasArchivoRoutes);
-app.use('/api/guardados-archivo', guardadosArchivoRoutes);
-app.use('/api/reportes', reporteRoutes);
-app.use('/api/moderacion-ia', moderacionIaRoutes);
-app.use('/api/normas', normasRoutes);
-app.use('/api/politicas', politicasRoutes);
-app.use('/api/etapas-publicacion', etapasPublicacionRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/cuatrimestres', cuatrimestresRoutes);
+app.use('/api/v1/materias', materiasRoutes);
+app.use('/api/v1/archivos', archivosRoutes);
+app.use('/api/v1/comentarios', comentariosRoutes);
+app.use('/api/v1/likes/archivos', likesArchivoRoutes);
+app.use('/api/v1/likes/comentarios', likesComentarioRoutes);
+app.use('/api/v1/descargas', descargasArchivoRoutes);
+app.use('/api/v1/guardados', guardadosArchivoRoutes);
+app.use('/api/v1/reportes', reporteRoutes);
+app.use('/api/v1/moderaciones', moderacionIaRoutes);
+app.use('/api/v1/normas', normasRoutes);
+app.use('/api/v1/politicas', politicasRoutes);
+app.use('/api/v1/etapas', etapasPublicacionRoutes);//etapas de publicacion de archivos
 // El errorHandler SIEMPRE va después de las rutas
 app.use(errorHandler);
 
