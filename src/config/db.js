@@ -15,7 +15,7 @@ const sequelize = new Sequelize(
           ssl: {
             require: true,
             rejectUnauthorized: false, // Evita errores de certificados autofirmados en Render
-            servername: process.env.DB_HOST
+            servername: String(process.env.DB_HOST).trim()
           }
         }
   }
