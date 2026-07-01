@@ -1,5 +1,16 @@
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 const { Materia, Cuatrimestre } = require('../models');
+
+// Conteo de archivos publicados por materia, calculado con subconsulta correlacionada
+// (mismo patrón que los contadores de archivo.repository.js), para no hacer N+1 peticiones.
+const ATRIBUTOS_CON_CONTADOR = {
+  include: [
+    [
+      Sequelize.literal(`(SELECT COUNT(*) FROM archivos WHERE archivos.materia_id = "Materia"."id" AND archivos.estado = 'publicado')`),
+      'totalArchivos',
+    ],
+  ],
+};
 
 class MateriaRepository {
   async listarTodas(filtro = {}) {
@@ -11,8 +22,10 @@ class MateriaRepository {
 
     const opciones = {
       where,
+      attributes: ATRIBUTOS_CON_CONTADOR,
       include: [{ model: Cuatrimestre, as: 'cuatrimestre' }],
       order: [['nombre', 'ASC']],
+      subQuery: false,
     };
 
     if (filtro.limit) {
@@ -25,6 +38,8 @@ class MateriaRepository {
   async listarPorCuatrimestre(cuatrimestreId) {
     return await Materia.findAll({
       where: { cuatrimestreId, activo: true },
+      attributes: ATRIBUTOS_CON_CONTADOR,
+      subQuery: false,
     });
   }
 
