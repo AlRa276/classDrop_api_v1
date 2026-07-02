@@ -31,7 +31,7 @@ module.exports = (sequelize) => {
             type: DataTypes.STRING(100),
             field: 'tipo_mime'
         },
-        tamanoByes: {
+        tamanoBytes: {
             type: DataTypes.BIGINT,
             field: 'tamano_bytes'
         },

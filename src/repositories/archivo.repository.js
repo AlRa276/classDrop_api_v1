@@ -56,7 +56,7 @@ class ArchivoRepository {
       ],
       limit: limite,
       offset,
-      order: [['createdAt', direccion]],
+      order: [['creado_en', direccion]],
       subQuery: false,
     });
   }
@@ -71,7 +71,7 @@ class ArchivoRepository {
       include: [{ model: Materia, as: 'materia' }],
       limit: limite,
       offset,
-      order: [['createdAt', 'DESC']],
+      order: [['creado_en', 'DESC']],
       subQuery: false,
     });
   }
