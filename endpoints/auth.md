@@ -12,6 +12,19 @@
   "contrasena": "contraseñaSegura"
 }
 ```
+- Respuesta exitosa (`201 Created`):
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "nombreCompleto": "Nombre Usuario",
+    "correo": "usuario@upchiapas.edu.mx"
+  },
+  "meta": null,
+  "error": null
+}
+```
 
 ## Registro de administrador
 - Método: `POST`
@@ -26,6 +39,20 @@
   "contrasena": "contraseñaSegura"
 }
 ```
+- Respuesta exitosa (`201 Created`):
+```json
+{
+  "success": true,
+  "data": {
+    "id": 2,
+    "nombreCompleto": "Admin Usuario",
+    "correo": "admin@upchiapas.edu.mx",
+    "rol": "admin"
+  },
+  "meta": null,
+  "error": null
+}
+```
 
 ## Login
 - Método: `POST`
@@ -38,6 +65,23 @@
   "contrasena": "contraseñaSegura"
 }
 ```
+- Respuesta exitosa (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "usuario": {
+      "id": 1,
+      "nombreCompleto": "Nombre Usuario",
+      "correo": "usuario@upchiapas.edu.mx",
+      "rol": "user"
+    }
+  },
+  "meta": null,
+  "error": null
+}
+```
 
 ## Perfil
 - Método: `GET`
@@ -46,6 +90,21 @@
 - Auth: sí
 - Headers:
   - `Authorization: Bearer <token>`
+- Respuesta exitosa (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "nombreCompleto": "Nombre Usuario",
+    "correo": "usuario@upchiapas.edu.mx",
+    "rol": "user",
+    "avatarUrl": null
+  },
+  "meta": null,
+  "error": null
+}
+```
 
 ## Logout
 - Método: `POST`
@@ -54,3 +113,14 @@
 - Auth: sí
 - Headers:
   - `Authorization: Bearer <token>`
+- Respuesta exitosa (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "mensaje": "Sesión cerrada correctamente"
+  },
+  "meta": null,
+  "error": null
+}
+```

@@ -4,7 +4,7 @@ const { ok, created, noContent } = require('../utils/apiResponse');
 class ComentarioController {
   async listarPorArchivo(req, res, next) {
     try {
-      const comentarios = await comentarioService.listarPorArchivo(req.params.archivoId);
+      const comentarios = await comentarioService.listarPorArchivo(req.params.id);
       return ok(res, comentarios);
     } catch (err) {
       next(err);

@@ -5,6 +5,29 @@
 - Ruta: `/api/comentarios/archivo/:archivoId`
 - Descripción: Obtiene todos los comentarios activos de un archivo.
 - Auth: no
+- Respuesta exitosa (`200 OK`):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "uuid-del-comentario",
+      "contenido": "Texto del comentario",
+      "archivoId": "uuid-del-archivo",
+      "usuarioId": "uuid-del-usuario",
+      "eliminado": false,
+      "creado_en": "2026-07-02T12:34:56.000Z",
+      "autor": {
+        "id": "uuid-del-usuario",
+        "nombreCompleto": "Nombre Usuario",
+        "avatarUrl": null
+      }
+    }
+  ],
+  "meta": null,
+  "error": null
+}
+```
 
 ## Crear comentario
 - Método: `POST`
@@ -20,6 +43,22 @@
   "contenido": "Texto del comentario"
 }
 ```
+- Respuesta exitosa (`201 Created`):
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid-del-comentario",
+    "contenido": "Texto del comentario",
+    "archivoId": "uuid-del-archivo",
+    "usuarioId": "uuid-del-usuario",
+    "eliminado": false,
+    "creado_en": "2026-07-02T12:34:56.000Z"
+  },
+  "meta": null,
+  "error": null
+}
+```
 
 ## Eliminar comentario
 - Método: `DELETE`
@@ -28,3 +67,5 @@
 - Auth: sí
 - Headers:
   - `Authorization: Bearer <token>`
+- Respuesta exitosa (`204 No Content`):
+  - Sin cuerpo de respuesta.
