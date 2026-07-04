@@ -1,46 +1,42 @@
-const { Op, Sequelize } = require('sequelize');
-const { Materia, Cuatrimestre } = require('../models');
-
-// Conteo de archivos publicados por materia, calculado con subconsulta correlacionada
-// (mismo patrón que los contadores de archivo.repository.js), para no hacer N+1 peticiones.
-const ATRIBUTOS_CON_CONTADOR = {
-  include: [
-    [
-      Sequelize.literal(`(SELECT COUNT(*) FROM archivos WHERE archivos.materia_id = "Materia"."id" AND archivos.estado = 'publicado')`),
-      'totalArchivos',
-    ],
-  ],
-};
+const { Op, Sequelize, QueryTypes } = require('sequelize');
+const { Materia, Cuatrimestre, sequelize } = require('../models');
 
 class MateriaRepository {
+  // VISTA 2 (v_materias_reporte, LEFT JOIN materias-archivos): incluye materias sin
+  // ningún archivo todavía, con su conteo real de archivos publicados.
   async listarTodas(filtro = {}) {
-    const where = { activo: true };
+    let filtros = '';
+    const reemplazos = {};
 
     if (filtro.search) {
-      where.nombre = { [Op.iLike]: `%${filtro.search}%` };
+      filtros += ' AND nombre ILIKE :search';
+      reemplazos.search = `%${filtro.search}%`;
     }
 
-    const opciones = {
-      where,
-      attributes: ATRIBUTOS_CON_CONTADOR,
-      include: [{ model: Cuatrimestre, as: 'cuatrimestre' }],
-      order: [['nombre', 'ASC']],
-      subQuery: false,
-    };
-
+    let limite = '';
     if (filtro.limit) {
-      opciones.limit = filtro.limit;
+      limite = 'LIMIT :limit';
+      reemplazos.limit = filtro.limit;
     }
 
-    return await Materia.findAll(opciones);
+    return await sequelize.query(
+      `SELECT id, nombre, icono, cuatrimestre_id AS "cuatrimestreId", activo, total_archivos AS "totalArchivos"
+       FROM v_materias_reporte
+       WHERE 1 = 1 ${filtros}
+       ORDER BY nombre ASC
+       ${limite}`,
+      { replacements: reemplazos, type: QueryTypes.SELECT }
+    );
   }
 
   async listarPorCuatrimestre(cuatrimestreId) {
-    return await Materia.findAll({
-      where: { cuatrimestreId, activo: true },
-      attributes: ATRIBUTOS_CON_CONTADOR,
-      subQuery: false,
-    });
+    return await sequelize.query(
+      `SELECT id, nombre, icono, cuatrimestre_id AS "cuatrimestreId", activo, total_archivos AS "totalArchivos"
+       FROM v_materias_reporte
+       WHERE cuatrimestre_id = :cuatrimestreId
+       ORDER BY nombre ASC`,
+      { replacements: { cuatrimestreId }, type: QueryTypes.SELECT }
+    );
   }
 
   async buscarPorId(id) {

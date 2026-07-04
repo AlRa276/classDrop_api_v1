@@ -1,5 +1,5 @@
-const { Op, Sequelize } = require('sequelize');
-const { Archivo, Usuario, Materia, ArchivoAdjunto, Comentario } = require('../models');
+const { Op, Sequelize, QueryTypes } = require('sequelize');
+const { Archivo, Usuario, Materia, ArchivoAdjunto, Comentario, sequelize } = require('../models');
 
 // Contadores calculados con subconsultas correlacionadas, para no hacer N+1 peticiones
 // desde el front. Se agregan como columnas extra junto a los atributos normales de Archivo.
@@ -20,6 +20,18 @@ const ATRIBUTOS_CON_CONTADORES = {
     [
       Sequelize.literal(`(SELECT COUNT(*) FROM comentarios WHERE comentarios.archivo_id = "Archivo"."id" AND comentarios.eliminado = false)`),
       'totalComentarios',
+    ],
+  ],
+};
+
+// Igual que arriba, pero además trae el nivel de riesgo (FUNCIÓN 2: fn_nivel_riesgo_archivo),
+// solo para la cola de moderación, donde sí tiene sentido mostrarlo.
+const ATRIBUTOS_MODERACION = {
+  include: [
+    ...ATRIBUTOS_CON_CONTADORES.include,
+    [
+      Sequelize.literal(`fn_nivel_riesgo_archivo("Archivo"."id")`),
+      'nivelRiesgo',
     ],
   ],
 };
@@ -45,6 +57,10 @@ class ArchivoRepository {
     if (materiaId) where.materiaId = materiaId;
     if (search) where.titulo = { [Op.iLike]: `%${search}%` };
 
+    if (orden === 'populares') {
+      return await this._listarPorPopularidad({ materiaId, search, limite, offset });
+    }
+
     const direccion = orden === 'antiguos' ? 'ASC' : 'DESC';
 
     return await Archivo.findAndCountAll({
@@ -53,12 +69,63 @@ class ArchivoRepository {
       include: [
         { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] },
         { model: Materia, as: 'materia' },
+        { model: ArchivoAdjunto, as: 'adjuntos' },
       ],
       limit: limite,
       offset,
-      order: [['creado_en', direccion]],
+      order: [['createdAt', direccion]],
       subQuery: false,
     });
+  }
+
+  // Orden por relevancia real: VISTA 1 (v_archivos_reporte, INNER JOIN archivo-autor-materia)
+  // + FUNCIÓN 1 (fn_popularidad_archivo) calculan el orden en SQL; luego traemos esos mismos
+  // archivos con Sequelize (para mantener el mismo formato de respuesta que el resto del API)
+  // y los reordenamos según ese cálculo.
+  async _listarPorPopularidad({ materiaId, search, limite, offset }) {
+    let filtros = '';
+    const reemplazos = { limite, offset };
+
+    if (materiaId) {
+      filtros += ' AND materia_id = :materiaId';
+      reemplazos.materiaId = materiaId;
+    }
+    if (search) {
+      filtros += ' AND titulo ILIKE :search';
+      reemplazos.search = `%${search}%`;
+    }
+
+    const filas = await sequelize.query(
+      `SELECT id, fn_popularidad_archivo(id) AS popularidad
+       FROM v_archivos_reporte
+       WHERE 1 = 1 ${filtros}
+       ORDER BY popularidad DESC, creado_en DESC
+       LIMIT :limite OFFSET :offset`,
+      { replacements: reemplazos, type: QueryTypes.SELECT }
+    );
+
+    const ids = filas.map((f) => f.id);
+    if (ids.length === 0) return { count: 0, rows: [] };
+
+    const whereConteo = { estado: 'publicado' };
+    if (materiaId) whereConteo.materiaId = materiaId;
+    if (search) whereConteo.titulo = { [Op.iLike]: `%${search}%` };
+    const count = await Archivo.count({ where: whereConteo });
+
+    const archivos = await Archivo.findAll({
+      where: { id: { [Op.in]: ids } },
+      attributes: ATRIBUTOS_CON_CONTADORES,
+      include: [
+        { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] },
+        { model: Materia, as: 'materia' },
+        { model: ArchivoAdjunto, as: 'adjuntos' },
+      ],
+    });
+
+    const porId = new Map(archivos.map((a) => [a.id, a]));
+    const rows = ids.map((id) => porId.get(id)).filter(Boolean);
+
+    return { count, rows };
   }
 
   async listarPorUsuario(usuarioId, { estado, limite = 20, offset = 0 } = {}) {
@@ -68,33 +135,52 @@ class ArchivoRepository {
     return await Archivo.findAndCountAll({
       where,
       attributes: ATRIBUTOS_CON_CONTADORES,
-      include: [{ model: Materia, as: 'materia' }],
+      include: [
+        { model: Materia, as: 'materia' },
+        { model: ArchivoAdjunto, as: 'adjuntos' },
+      ],
       limit: limite,
       offset,
-      order: [['creado_en', 'DESC']],
+      order: [['createdAt', 'DESC']],
       subQuery: false,
     });
   }
 
+  // Cola de moderación: todo lo que un admin todavía tiene que revisar.
+  // Incluye nivelRiesgo (FUNCIÓN 2) para priorizar qué revisar primero.
+  async listarPendientes({ limite = 50, offset = 0 } = {}) {
+    return await Archivo.findAndCountAll({
+      where: { estado: { [Op.in]: ['pendiente', 'escaneando', 'revision_calidad'] } },
+      attributes: ATRIBUTOS_MODERACION,
+      include: [
+        { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] },
+        { model: Materia, as: 'materia' },
+      ],
+      limit: limite,
+      offset,
+      order: [['createdAt', 'ASC']], // los más antiguos primero, como una cola normal
+      subQuery: false,
+    });
+  }
+
+  // Usa los PROCEDIMIENTOS ALMACENADOS sp_publicar_archivo / sp_rechazar_archivo para
+  // los 2 cambios de estado que representan una decisión real de moderación. El resto
+  // de transiciones (ej. volver a 'pendiente') se manejan como update normal.
   async actualizarEstado(id, estado, motivoRechazo = null) {
     const archivo = await Archivo.findByPk(id);
     if (!archivo) return null;
 
-    const datos = { estado };
-
     if (estado === 'publicado') {
-      datos.publicadoEn = new Date();
-      datos.motivoRechazo = null;
+      await sequelize.query('CALL sp_publicar_archivo(:id)', { replacements: { id } });
+    } else if (estado === 'rechazado') {
+      await sequelize.query('CALL sp_rechazar_archivo(:id, :motivo)', {
+        replacements: { id, motivo: motivoRechazo?.trim() || 'Sin motivo especificado' },
+      });
     } else {
-      datos.publicadoEn = null;
-      if (estado === 'rechazado') {
-        datos.motivoRechazo = motivoRechazo?.trim() || null;
-      } else {
-        datos.motivoRechazo = null;
-      }
+      await archivo.update({ estado, publicadoEn: null, motivoRechazo: null });
     }
 
-    return await archivo.update(datos);
+    return await Archivo.findByPk(id);
   }
 
   async eliminar(id) {

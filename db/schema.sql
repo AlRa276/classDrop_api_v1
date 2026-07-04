@@ -1,5 +1,3 @@
-
-
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TYPE rol_usuario             AS ENUM ('estudiante', 'admin');
@@ -111,7 +109,7 @@ CREATE TABLE likes_archivos (
     creado_en  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (usuario_id, archivo_id)
 );
---nuevo
+
 CREATE TABLE dislikes_archivos (
     usuario_id UUID        NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
     archivo_id UUID        NOT NULL REFERENCES archivos(id) ON DELETE CASCADE,
@@ -150,7 +148,7 @@ CREATE TABLE likes_comentarios (
     PRIMARY KEY (usuario_id, comentario_id)
 );
 
-CREATE TABLE IF NOT EXISTS dislikes_comentarios (
+CREATE TABLE dislikes_comentarios (
     usuario_id    UUID        NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
     comentario_id UUID        NOT NULL REFERENCES comentarios(id) ON DELETE CASCADE,
     creado_en     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -201,37 +199,113 @@ CREATE TABLE etapas_publicacion (
 
 -- vistas
 
- 
--- Estadísticas por si acaso
-CREATE VIEW v_estadisticas_archivos AS
+-- VISTA 1 — INNER JOIN: archivos publicados con autor y materia (ambas FK
+-- son NOT NULL, así que INNER JOIN es correcto). Se usa para ordenar por
+-- popularidad en /archivos/publicados.
+CREATE VIEW v_archivos_reporte AS
 SELECT
     a.id,
     a.titulo,
+    a.descripcion,
+    a.tipo,
+    a.estado,
     a.materia_id,
-    COUNT(DISTINCT la.usuario_id)  AS total_likes,
-    COUNT(DISTINCT dla.usuario_id) AS total_dislikes,
-    COUNT(DISTINCT da.id)          AS total_descargas,
-    COUNT(DISTINCT c.id)           AS total_comentarios,
-    COUNT(DISTINCT adj.id)         AS total_adjuntos
+    a.creado_en,
+    u.id     AS autor_id,
+    u.nombre_completo AS autor_nombre,
+    m.nombre AS materia_nombre
 FROM archivos a
-LEFT JOIN likes_archivos      la  ON la.archivo_id  = a.id
-LEFT JOIN dislikes_archivos   dla ON dla.archivo_id = a.id
-LEFT JOIN descargas_archivos  da  ON da.archivo_id  = a.id
-LEFT JOIN comentarios         c   ON c.archivo_id   = a.id AND NOT c.eliminado
-LEFT JOIN archivos_adjuntos   adj ON adj.archivo_id = a.id
-WHERE a.estado = 'publicado'
-GROUP BY a.id, a.titulo, a.materia_id;
- 
--- Total de archivos publicados por materia
-CREATE VIEW v_archivos_por_materia AS
+INNER JOIN usuarios u ON u.id = a.subido_por
+INNER JOIN materias m ON m.id = a.materia_id
+WHERE a.estado = 'publicado';
+
+-- VISTA 2 — LEFT JOIN: todas las materias con su conteo de archivos
+-- publicados, incluyendo materias sin ningún archivo todavía.
+CREATE VIEW v_materias_reporte AS
 SELECT
     m.id,
     m.nombre,
+    m.icono,
     m.cuatrimestre_id,
+    m.activo,
     COUNT(a.id) AS total_archivos
 FROM materias m
 LEFT JOIN archivos a ON a.materia_id = m.id AND a.estado = 'publicado'
-GROUP BY m.id, m.nombre, m.cuatrimestre_id;
+WHERE m.activo = TRUE
+GROUP BY m.id, m.nombre, m.icono, m.cuatrimestre_id, m.activo;
+
+-- funciones
+
+-- FUNCIÓN 1: puntaje de popularidad de un archivo (likes, dislikes,
+-- comentarios y descargas), usado para ordenar por relevancia.
+CREATE OR REPLACE FUNCTION fn_popularidad_archivo(p_archivo_id UUID)
+RETURNS INTEGER AS $$
+DECLARE
+    v_likes       INTEGER;
+    v_dislikes    INTEGER;
+    v_comentarios INTEGER;
+    v_descargas   INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO v_likes       FROM likes_archivos      WHERE archivo_id = p_archivo_id;
+    SELECT COUNT(*) INTO v_dislikes    FROM dislikes_archivos   WHERE archivo_id = p_archivo_id;
+    SELECT COUNT(*) INTO v_comentarios FROM comentarios         WHERE archivo_id = p_archivo_id AND NOT eliminado;
+    SELECT COUNT(*) INTO v_descargas   FROM descargas_archivos  WHERE archivo_id = p_archivo_id;
+
+    RETURN (v_likes * 2) - v_dislikes + v_comentarios + v_descargas;
+END;
+$$ LANGUAGE plpgsql;
+
+-- FUNCIÓN 2: nivel de riesgo de un archivo, promedio de puntuación (1-5)
+-- de sus reportes pendientes. Usado en el panel de moderación.
+CREATE OR REPLACE FUNCTION fn_nivel_riesgo_archivo(p_archivo_id UUID)
+RETURNS NUMERIC AS $$
+DECLARE
+    v_promedio NUMERIC;
+BEGIN
+    SELECT AVG(puntuacion) INTO v_promedio
+    FROM reportes
+    WHERE archivo_id = p_archivo_id
+      AND estado = 'pendiente';
+
+    RETURN COALESCE(ROUND(v_promedio, 2), 0);
+END;
+$$ LANGUAGE plpgsql;
+
+-- procedimientos
+
+-- PROCEDIMIENTO 1: publicar un archivo (cambia estado, marca publicado_en
+-- y registra la etapa final de publicación). Lo dispara el admin al aprobar.
+CREATE OR REPLACE PROCEDURE sp_publicar_archivo(p_archivo_id UUID)
+LANGUAGE plpgsql AS $$
+BEGIN
+    UPDATE archivos
+    SET estado = 'publicado',
+        publicado_en = NOW()
+    WHERE id = p_archivo_id;
+
+    INSERT INTO etapas_publicacion (archivo_id, etapa, orden, completado, progreso, actualizado_en)
+    VALUES (p_archivo_id, 'publicacion', 4, TRUE, 100, NOW())
+    ON CONFLICT (archivo_id, etapa)
+    DO UPDATE SET completado = TRUE, progreso = 100, actualizado_en = NOW();
+END;
+$$;
+
+-- PROCEDIMIENTO 2: rechazar un archivo (cambia estado, guarda motivo y
+-- marca la etapa de revisión). Lo dispara el admin al rechazar.
+CREATE OR REPLACE PROCEDURE sp_rechazar_archivo(p_archivo_id UUID, p_motivo TEXT)
+LANGUAGE plpgsql AS $$
+BEGIN
+    UPDATE archivos
+    SET estado = 'rechazado',
+        motivo_rechazo = p_motivo
+    WHERE id = p_archivo_id;
+
+    INSERT INTO etapas_publicacion (archivo_id, etapa, orden, completado, progreso, actualizado_en)
+    VALUES (p_archivo_id, 'revision_calidad', 3, TRUE, 100, NOW())
+    ON CONFLICT (archivo_id, etapa)
+    DO UPDATE SET completado = TRUE, progreso = 100, actualizado_en = NOW();
+END;
+$$;
 
 CREATE INDEX idx_archivos_materia        ON archivos(materia_id);
 CREATE INDEX idx_archivos_estado         ON archivos(estado);
@@ -243,4 +317,3 @@ CREATE INDEX idx_materias_cuatrimestre   ON materias(cuatrimestre_id);
 CREATE INDEX idx_tokens_revocados_expira_en ON tokens_revocados(expira_en);
 CREATE INDEX idx_politicas_categoria ON politicas(categoria);
 CREATE INDEX idx_etapas_publicacion_archivo ON etapas_publicacion(archivo_id);
- 
