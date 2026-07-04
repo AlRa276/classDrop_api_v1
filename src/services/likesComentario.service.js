@@ -1,4 +1,5 @@
 const likesComentarioRepository = require('../repositories/likesComentario.repository');
+const dislikeComentarioRepository = require('../repositories/dislikeComentario.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
 const comentarioRepository = require('../repositories/comentario.repository');
 
@@ -23,6 +24,12 @@ class LikesComentarioService {
       const error = new Error('Ya has dado like a este comentario');
       error.status = 409;
       throw error;
+    }
+
+    // Un like quita el dislike existente, si lo hay (mutuamente excluyentes)
+    const yaLeDisgustaba = await dislikeComentarioRepository.existe(usuarioId, comentarioId);
+    if (yaLeDisgustaba) {
+      await dislikeComentarioRepository.eliminar(usuarioId, comentarioId);
     }
 
     return await likesComentarioRepository.crear(usuarioId, comentarioId);

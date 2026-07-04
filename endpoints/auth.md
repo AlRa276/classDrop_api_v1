@@ -2,7 +2,7 @@
 
 ## Registro de usuario
 - Método: `POST`
-- Ruta: `/api/auth/registro`
+- Ruta: `/api/v1/auth/registro`
 - Descripción: Registra un nuevo usuario con correo institucional y contraseña.
 - Body:
 ```json
@@ -28,7 +28,7 @@
 
 ## Registro de administrador
 - Método: `POST`
-- Ruta: `/api/auth/registro-admin`
+- Ruta: `/api/v1/auth/registro-admin`
 - Descripción: Registra un nuevo usuario con rol de administrador.
 - Auth: no
 - Body:
@@ -56,7 +56,7 @@
 
 ## Login
 - Método: `POST`
-- Ruta: `/api/auth/login`
+- Ruta: `/api/v1/auth/login`
 - Descripción: Autentica al usuario y devuelve un token JWT.
 - Body:
 ```json
@@ -85,7 +85,7 @@
 
 ## Perfil
 - Método: `GET`
-- Ruta: `/api/auth/perfil`
+- Ruta: `/api/v1/auth/perfil`
 - Descripción: Obtiene los datos del usuario autenticado.
 - Auth: sí
 - Headers:
@@ -108,7 +108,7 @@
 
 ## Logout
 - Método: `POST`
-- Ruta: `/api/auth/logout`
+- Ruta: `/api/v1/auth/logout`
 - Descripción: Cierra la sesión del usuario autenticado.
 - Auth: sí
 - Headers:

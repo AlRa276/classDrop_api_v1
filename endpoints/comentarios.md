@@ -2,7 +2,7 @@
 
 ## Listar comentarios por archivo
 - Método: `GET`
-- Ruta: `/api/comentarios/archivo/:archivoId`
+- Ruta: `/api/v1/comentarios/archivo/:id`
 - Descripción: Obtiene todos los comentarios activos de un archivo.
 - Auth: no
 - Respuesta exitosa (`200 OK`):
@@ -31,7 +31,7 @@
 
 ## Crear comentario
 - Método: `POST`
-- Ruta: `/api/comentarios`
+- Ruta: `/api/v1/comentarios`
 - Descripción: Crea un comentario nuevo en un archivo. El usuario debe estar autenticado.
 - Auth: sí
 - Headers:
@@ -62,7 +62,7 @@
 
 ## Eliminar comentario
 - Método: `DELETE`
-- Ruta: `/api/comentarios/:id`
+- Ruta: `/api/v1/comentarios/:id`
 - Descripción: Marca un comentario como eliminado. Solo puede hacerlo el autor.
 - Auth: sí
 - Headers:

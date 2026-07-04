@@ -150,6 +150,13 @@ CREATE TABLE likes_comentarios (
     PRIMARY KEY (usuario_id, comentario_id)
 );
 
+CREATE TABLE IF NOT EXISTS dislikes_comentarios (
+    usuario_id    UUID        NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    comentario_id UUID        NOT NULL REFERENCES comentarios(id) ON DELETE CASCADE,
+    creado_en     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (usuario_id, comentario_id)
+);
+
 
 CREATE TABLE reportes (
     id             UUID                     PRIMARY KEY DEFAULT gen_random_uuid(),

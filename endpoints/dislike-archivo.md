@@ -7,6 +7,20 @@
 - Auth: sí
 - Headers:
   - `Authorization: Bearer <token>`
+- Respuesta exitosa (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid-del-dislike",
+    "usuarioId": "uuid-del-usuario",
+    "archivoId": "uuid-del-archivo",
+    "creado_en": "2026-07-02T12:34:56.000Z"
+  },
+  "meta": null,
+  "error": null
+}
+```
 
 ## Quitar dislike de un archivo
 - Método: `DELETE`
@@ -15,6 +29,8 @@
 - Auth: sí
 - Headers:
   - `Authorization: Bearer <token>`
+- Respuesta exitosa (`204 No Content`):
+  - Sin cuerpo de respuesta.
 
 ## Nota sobre contadores
 - Los contadores `totalLikes`, `totalDislikes`, `totalDescargas` y `totalComentarios` ya vienen incluidos

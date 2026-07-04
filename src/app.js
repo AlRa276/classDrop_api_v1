@@ -8,7 +8,9 @@ const materiasRoutes = require('./routes/materias.routes');
 const archivosRoutes = require('./routes/archivos.routes');
 const comentariosRoutes = require('./routes/comentarios.routes');
 const likesArchivoRoutes = require('./routes/likes-archivo.routes');
+const dislikesArchivoRoutes = require('./routes/dislikeArchivo.routes');
 const likesComentarioRoutes = require('./routes/likesComentario.routes');
+const dislikesComentarioRoutes = require('./routes/dislikesComentatios.routes');
 const descargasArchivoRoutes = require('./routes/descargasArchivo.routes');
 const guardadosArchivoRoutes = require('./routes/guardadosArchivo.routes');
 const reporteRoutes = require('./routes/reporte.routes');
@@ -16,7 +18,6 @@ const moderacionIaRoutes = require('./routes/moderacionIa.routes');
 const normasRoutes = require('./routes/normas.routes');
 const politicasRoutes = require('./routes/politica.routes');
 const etapasPublicacionRoutes = require('./routes/etapaPublicacion.routes');
-const dislikeArchivoRoutes = require('./routes/dislikeArchivo.routes');
 const errorHandler = require('./middlewares/errorHandler');
 
 const app = express();
@@ -34,7 +35,9 @@ app.use('/api/v1/materias', materiasRoutes);
 app.use('/api/v1/archivos', archivosRoutes);
 app.use('/api/v1/comentarios', comentariosRoutes);
 app.use('/api/v1/likes/archivos', likesArchivoRoutes);
+app.use('/api/v1/dislikes/archivos', dislikesArchivoRoutes);
 app.use('/api/v1/likes/comentarios', likesComentarioRoutes);
+app.use('/api/v1/dislikes/comentarios', dislikesComentarioRoutes);
 app.use('/api/v1/descargas', descargasArchivoRoutes);
 app.use('/api/v1/guardados', guardadosArchivoRoutes);
 app.use('/api/v1/reportes', reporteRoutes);
@@ -42,7 +45,6 @@ app.use('/api/v1/moderaciones', moderacionIaRoutes);
 app.use('/api/v1/normas', normasRoutes);
 app.use('/api/v1/politicas', politicasRoutes);
 app.use('/api/v1/etapas', etapasPublicacionRoutes);//etapas de publicacion de archivos
-app.use('/api/v1/dislikes', dislikeArchivoRoutes);
 // El errorHandler SIEMPRE va después de las rutas
 app.use(errorHandler);
 
