@@ -69,6 +69,19 @@ class ArchivoController {
     }
   }
 
+  async listarPendientes(req, res, next) {
+    try {
+      const { limite, offset } = req.query;
+      const resultado = await archivoService.listarPendientes({
+        limite: limite ? Number(limite) : 50,
+        offset: offset ? Number(offset) : 0,
+      });
+      return ok(res, resultado);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async contarPublicados(req, res, next) {
     try {
       const total = await archivoService.contarPublicadosPorUsuario(req.usuario.id);
