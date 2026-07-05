@@ -83,6 +83,8 @@ CREATE TABLE archivos (
     tipo           tipo_archivo   NOT NULL DEFAULT 'pdf',
     estado         estado_archivo NOT NULL DEFAULT 'pendiente',
     motivo_rechazo TEXT,                          -- razón del flag de IA o rechazo manual
+    riesgo_ia      SMALLINT       CHECK (riesgo_ia BETWEEN 0 AND 100),
+    resultado_ia   JSONB,                         -- desglose completo del veredicto del microservicio
     subido_por     UUID           NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
     materia_id     UUID           NOT NULL REFERENCES materias(id) ON DELETE CASCADE,
     publicado_en   TIMESTAMPTZ,
@@ -310,6 +312,7 @@ $$;
 CREATE INDEX idx_archivos_materia        ON archivos(materia_id);
 CREATE INDEX idx_archivos_estado         ON archivos(estado);
 CREATE INDEX idx_archivos_subido_por     ON archivos(subido_por);
+CREATE INDEX idx_archivos_riesgo_ia      ON archivos(riesgo_ia);
 CREATE INDEX idx_adjuntos_archivo        ON archivos_adjuntos(archivo_id);
 CREATE INDEX idx_comentarios_archivo     ON comentarios(archivo_id);
 CREATE INDEX idx_reportes_estado         ON reportes(estado);

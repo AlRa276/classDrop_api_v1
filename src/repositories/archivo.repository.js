@@ -183,6 +183,13 @@ class ArchivoRepository {
     return await Archivo.findByPk(id);
   }
 
+  async guardarResultadoIa(id, { puntajeRiesgo, nivelesEjecutados }) {
+    return await Archivo.update(
+      { riesgoIa: puntajeRiesgo, resultadoIa: nivelesEjecutados },
+      { where: { id } }
+    );
+  }
+
   async eliminar(id) {
     const archivo = await Archivo.findByPk(id);
     if (!archivo) return null;

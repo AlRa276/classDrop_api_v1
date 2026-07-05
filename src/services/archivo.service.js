@@ -3,6 +3,7 @@ const archivoAdjuntoRepository = require('../repositories/archivoAdjunto.reposit
 const materiaRepository = require('../repositories/materia.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
 const etapaPublicacionService = require('./etapaPublicacion.service');
+const moderacionIaClient = require('./moderacionIa.client');
 
 const FORMATO_PERMITIDO = ['pdf', 'png', 'jpg', 'c'];
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
@@ -12,6 +13,27 @@ const MIME_EXTENSION_MAP = {
   'image/jpeg': 'jpg',
   'image/jpg': 'jpg'
 };
+
+// Dominios permitidos para archivos de tipo 'url'. Se aceptan también
+// subdominios (ej. "gist.github.com", "m.youtube.com").
+const DOMINIOS_URL_PERMITIDOS = ['github.com', 'youtube.com', 'youtu.be'];
+
+function validarUrl(urlTexto) {
+  let url;
+  try {
+    url = new URL(urlTexto);
+  } catch {
+    return false; // ni siquiera es una URL bien formada
+  }
+
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return false;
+  }
+
+  return DOMINIOS_URL_PERMITIDOS.some(
+    (dominio) => url.hostname === dominio || url.hostname.endsWith(`.${dominio}`)
+  );
+}
 
 function obtenerExtension(adjunto) {
   const extensionRaw = adjunto.extension;
@@ -92,23 +114,35 @@ class ArchivoService {
       throw error;
     }
 
-    const archivosValidos = adjuntos.every((adjunto) => {
-      const extension = obtenerExtension(adjunto);
-      if (!extension || !adjunto.tamanoBytes) return false;
-      return FORMATO_PERMITIDO.includes(extension);
-    });
+    if (tipo === 'url') {
+      const urlsValidas = adjuntos.every(
+        (adjunto) => adjunto.urlStorage && validarUrl(adjunto.urlStorage)
+      );
 
-    if (!archivosValidos) {
-      const error = new Error('Solo se permiten archivos con extensión .pdf, .png, .jpg y .c');
-      error.status = 400;
-      throw error;
-    }
+      if (!urlsValidas) {
+        const error = new Error('Solo se permiten enlaces de GitHub o YouTube');
+        error.status = 400;
+        throw error;
+      }
+    } else {
+      const archivosValidos = adjuntos.every((adjunto) => {
+        const extension = obtenerExtension(adjunto);
+        if (!extension || !adjunto.tamanoBytes) return false;
+        return FORMATO_PERMITIDO.includes(extension);
+      });
 
-    const tamanoValido = adjuntos.every((adjunto) => adjunto.tamanoBytes <= TAMANO_MAXIMO_BYTES);
-    if (!tamanoValido) {
-      const error = new Error('El tamaño máximo por archivo es 20 MB');
-      error.status = 400;
-      throw error;
+      if (!archivosValidos) {
+        const error = new Error('Solo se permiten archivos con extensión .pdf, .png, .jpg y .c');
+        error.status = 400;
+        throw error;
+      }
+
+      const tamanoValido = adjuntos.every((adjunto) => adjunto.tamanoBytes <= TAMANO_MAXIMO_BYTES);
+      if (!tamanoValido) {
+        const error = new Error('El tamaño máximo por archivo es 20 MB');
+        error.status = 400;
+        throw error;
+      }
     }
 
     const archivo = await archivoRepository.crear({
@@ -123,16 +157,48 @@ class ArchivoService {
     const listaAdjuntos = adjuntos.map((adjunto, index) => ({
       archivoId: archivo.id,
       urlStorage: adjunto.urlStorage,
-      nombreOriginal: adjunto.nombreOriginal,
-      tipoMime: adjunto.tipoMime,
-      tamanoBytes: adjunto.tamanoBytes,
+      nombreOriginal: adjunto.nombreOriginal || (tipo === 'url' ? adjunto.urlStorage : null),
+      tipoMime: adjunto.tipoMime || (tipo === 'url' ? 'text/url' : null),
+      tamanoBytes: adjunto.tamanoBytes || 0,
       numPaginas: adjunto.numPaginas,
       orden: index,
     }));
 
     await archivoAdjuntoRepository.crearMultiples(listaAdjuntos);
     await etapaPublicacionService.inicializar(archivo.id);
-    return archivo;
+
+    // --- Microservicio de moderación IA (Nivel 1 a 4) ---
+    await etapaPublicacionService.avanzarEtapa(archivo.id, 'escaneo_seguridad', { progreso: 20 });
+
+    const primerAdjunto = listaAdjuntos[0];
+    const resultadoIa = await moderacionIaClient.moderarArchivo({
+      archivoId: archivo.id,
+      titulo,
+      descripcion,
+      nombreArchivo: primerAdjunto.nombreOriginal,
+      tipoMime: primerAdjunto.tipoMime,
+      tamanoBytes: primerAdjunto.tamanoBytes,
+      urlArchivo: primerAdjunto.urlStorage,
+    });
+
+    await archivoRepository.guardarResultadoIa(archivo.id, resultadoIa);
+
+    if (resultadoIa.veredictoFinal === 'aprobar') {
+      // La IA determinó que es claramente seguro: se publica solo, sin admin.
+      await archivoRepository.actualizarEstado(archivo.id, 'publicado');
+    } else if (resultadoIa.veredictoFinal === 'rechazar') {
+      // La IA determinó que claramente no cumple las normas: se rechaza solo.
+      await archivoRepository.actualizarEstado(
+        archivo.id,
+        'rechazado',
+        resultadoIa.motivo || 'Rechazado automáticamente por el sistema de moderación'
+      );
+    } else {
+      // Caso ambiguo (o el microservicio no respondió): queda en cola humana normal.
+      await etapaPublicacionService.avanzarEtapa(archivo.id, 'revision_calidad', { progreso: 50 });
+    }
+
+    return await archivoRepository.buscarPorId(archivo.id);
   }
 
   async obtenerPorId(id) {
@@ -151,6 +217,10 @@ class ArchivoService {
 
   async listarPorUsuario(usuarioId, params) {
     return await archivoRepository.listarPorUsuario(usuarioId, params);
+  }
+
+  async listarPendientes(params) {
+    return await archivoRepository.listarPendientes(params);
   }
 
   async contarPublicadosPorUsuario(usuarioId) {

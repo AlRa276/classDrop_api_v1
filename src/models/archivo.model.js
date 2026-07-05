@@ -28,6 +28,14 @@ module.exports = (sequelize) => {
             type: DataTypes.TEXT,
             field: 'motivo_rechazo'
         },
+        riesgoIa: {
+            type: DataTypes.SMALLINT,
+            field: 'riesgo_ia'
+        },
+        resultadoIa: {
+            type: DataTypes.JSONB,
+            field: 'resultado_ia'
+        },
         subidoPor: {
             type: DataTypes.UUID,
             allowNull: false,
