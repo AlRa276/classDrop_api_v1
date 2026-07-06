@@ -56,6 +56,23 @@ class AuthController {
       next(err);
     }
   }
+
+  async actualizarFcmToken(req, res, next) {
+    try {
+      const { fmcToken } = req.body;
+      
+      if (!fmcToken) {
+        const error = new Error('El token FCM es requerido');
+        error.status = 400;
+        throw error;
+      }
+
+      const resultado = await authService.actualizarFcmToken(req.usuario.id, fmcToken);
+      return ok(res, resultado);
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new AuthController();

@@ -18,7 +18,8 @@ CREATE TABLE usuarios (
     rol             rol_usuario  NOT NULL DEFAULT 'estudiante',
     avatar_url      TEXT,
     creado_en       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    activo          BOOLEAN      NOT NULL DEFAULT TRUE
+    activo          BOOLEAN      NOT NULL DEFAULT TRUE,
+    fmc_token       TEXT
 );
 
 CREATE TABLE tokens_revocados (

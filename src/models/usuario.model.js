@@ -36,6 +36,11 @@ module.exports = (sequelize) => {
             type: DataTypes.BOOLEAN,
             defaultValue: true
         },
+        fmcToken: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+            field: 'fmc_token'
+        }
 
     }, {
         sequelize,

@@ -65,7 +65,7 @@ class AuthService {
     return usuario;
   }
 
-  async login({ correo, contrasena }) {
+  async login({ correo, contrasena, fmcToken }) {
     const usuario = await usuarioRepository.buscarPorCorreo(correo.toLowerCase());
 
     if (!usuario) {
@@ -85,6 +85,11 @@ class AuthService {
       const error = new Error('Credenciales inválidas');
       error.status = 401;
       throw error;
+    }
+
+    // Actualizar FCM token si viene en el request
+    if (fmcToken) {
+      await usuarioRepository.actualizar(usuario.id, { fmcToken });
     }
 
     const token = jwt.sign(
@@ -131,6 +136,22 @@ class AuthService {
     const expiraEn = new Date(decoded.exp * 1000);
     await tokenRevocadoRepository.revocar(hashToken(token), usuarioId, expiraEn);
     return true;
+  }
+
+  async actualizarFcmToken(usuarioId, fmcToken) {
+    const usuario = await usuarioRepository.buscarPorId(usuarioId);
+    if (!usuario) {
+      const error = new Error('Usuario no encontrado');
+      error.status = 404;
+      throw error;
+    }
+
+    const usuarioActualizado = await usuarioRepository.actualizar(usuarioId, { fmcToken });
+    return {
+      id: usuarioActualizado.id,
+      fmcToken: usuarioActualizado.fmcToken,
+      mensaje: 'Token FCM actualizado correctamente',
+    };
   }
 }
 
