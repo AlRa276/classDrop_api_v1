@@ -74,8 +74,7 @@ class ArchivoService {
       error.status = 400;
       throw error;
     }
-    console.log('DEBUG: Intentando notificar a usuario:', usuarioPropietario?.correo);
-        console.log('DEBUG: Token encontrado:', usuarioPropietario?.fcmToken);
+    
         // ---------------------------------
 
     if (estado === 'rechazado') {
@@ -101,6 +100,8 @@ class ArchivoService {
       try {
         // Buscamos al dueño del archivo para obtener su FcmToken
         const usuarioPropietario = await usuarioRepository.buscarPorId(archivo.subidoPor);
+        console.log('DEBUG: Intentando notificar a usuario:', usuarioPropietario?.correo);
+        console.log('DEBUG: Token encontrado:', usuarioPropietario?.fcmToken);
         
         if (usuarioPropietario && usuarioPropietario.fcmToken) {
           const esAprobado = estado === 'publicado';
