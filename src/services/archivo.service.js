@@ -74,6 +74,9 @@ class ArchivoService {
       error.status = 400;
       throw error;
     }
+    console.log('DEBUG: Intentando notificar a usuario:', usuarioPropietario?.correo);
+        console.log('DEBUG: Token encontrado:', usuarioPropietario?.fcmToken);
+        // ---------------------------------
 
     if (estado === 'rechazado') {
       const motivo = motivoRechazo?.toString().trim();
