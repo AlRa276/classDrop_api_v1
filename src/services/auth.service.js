@@ -88,8 +88,10 @@ class AuthService {
     }
 
     // Actualizar FCM token si viene en el request
+    let usuarioActualizado = usuario;
     if (fmcToken) {
-      await usuarioRepository.actualizar(usuario.id, { fmcToken });
+      usuarioActualizado = await usuarioRepository.actualizar(usuario.id, { fmcToken });
+      console.log('FCM Token guardado:', usuarioActualizado.fmcToken); // DEBUG
     }
 
     const token = jwt.sign(
@@ -101,10 +103,11 @@ class AuthService {
     return {
       token,
       usuario: {
-        id: usuario.id,
-        nombreCompleto: usuario.nombreCompleto,
-        correo: usuario.correo,
-        rol: usuario.rol,
+        id: usuarioActualizado.id,
+        nombreCompleto: usuarioActualizado.nombreCompleto,
+        correo: usuarioActualizado.correo,
+        rol: usuarioActualizado.rol,
+        fmcToken: usuarioActualizado.fmcToken, // ← Ahora devuelves el token guardado
       },
     };
   }
