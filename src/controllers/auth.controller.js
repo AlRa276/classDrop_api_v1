@@ -1,3 +1,4 @@
+// src/controllers/auth.controller.js
 const authService = require('../services/auth.service');
 const { created, ok } = require('../utils/apiResponse');
 
@@ -33,6 +34,45 @@ class AuthController {
     try {
       console.log('Body del login:', req.body); // DEBUG
       const resultado = await authService.login(req.body);
+      
+      if (resultado.requires2FA) {
+        return ok(res, {
+          requires2FA: true,
+          userId: resultado.userId,
+          mensaje: 'Se requiere código de verificación en dos pasos (2FA)'
+        });
+      }
+
+      return ok(res, resultado);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async login2FA(req, res, next) {
+    try {
+      const { userId, token } = req.body;
+      const resultado = await authService.login2FA(userId, token);
+      return ok(res, resultado);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async generar2FA(req, res, next) {
+    try {
+      // Regresa a leer dinámicamente del token inyectado
+      const resultado = await authService.generarEstructura2FA(req.usuario.id);
+      return ok(res, resultado);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async activar2FA(req, res, next) {
+    try {
+      const { token } = req.body;
+      const resultado = await authService.activar2FA(req.usuario.id, token);
       return ok(res, resultado);
     } catch (err) {
       next(err);
@@ -41,7 +81,6 @@ class AuthController {
 
   async perfil(req, res, next) {
     try {
-      // req.usuario lo va a inyectar el middleware de auth (JWT) más adelante
       const usuario = await authService.obtenerPerfil(req.usuario.id);
       return ok(res, usuario);
     } catch (err) {
@@ -57,10 +96,10 @@ class AuthController {
       next(err);
     }
   }
+
   async actualizarFcmToken(req, res, next) {
     try {
         const { fcmToken } = req.body;
-        // Verifica si llega el token
         console.log('Token recibido en backend:', fcmToken); 
 
         const { Usuario } = require('../models');
@@ -70,15 +109,14 @@ class AuthController {
             return res.status(404).json({ message: 'Usuario no encontrado' });
         }
         
-        // Asignación explícita
         usuario.fcmToken = fcmToken;
-        await usuario.save(); // <--- IMPORTANTE: Asegúrate de que esto se ejecute
+        await usuario.save(); 
         
         return res.status(200).json({ message: 'FCM Token guardado' });
     } catch (err) {
         next(err);
     }
-}
+  }
 }
 
 module.exports = new AuthController();

@@ -40,6 +40,18 @@ module.exports = (sequelize) => {
             type: DataTypes.TEXT,
             allowNull: true,
             field: 'fcm_token'
+        },
+        // ✅ NUEVA COLUMNA: Mapea el código secreto temporal del correo
+        twoFactorSecret: {
+            type: DataTypes.STRING(6),
+            allowNull: true,
+            field: 'two_factor_secret' // <-- Con esto Sequelize sabe escribir en tu columna de Railway
+        },
+        // ✅ NUEVA COLUMNA: Mapea el interruptor que activa el 2FA
+        isTwoFactorEnabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            field: 'is_two_factor_enabled' // <-- Une tu variable con la de Railway
         }
 
     }, {

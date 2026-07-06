@@ -19,7 +19,10 @@ CREATE TABLE usuarios (
     avatar_url      TEXT,
     creado_en       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     activo          BOOLEAN      NOT NULL DEFAULT TRUE,
-    fmc_token       TEXT
+    fmc_token       TEXT,
+    two_factor_secret   VARCHAR(6),
+    is_two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE
+
 );
 
 CREATE TABLE tokens_revocados (
