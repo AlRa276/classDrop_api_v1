@@ -23,7 +23,7 @@ class NormaRepository {
   async listarActivas() {
     return await Norma.findAll({
       where: { estado: 'activa' },
-      order: [['creadoEn', 'DESC']]
+      order: [['creado_en', 'DESC']]
     });
   }
 

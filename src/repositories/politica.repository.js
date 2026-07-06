@@ -9,7 +9,7 @@ class PoliticaRepository {
 
     return await Politica.findAll({
       where,
-      order: [['esPrincipal', 'DESC'], ['orden', 'ASC'], ['createdAt', 'ASC']],
+      order: [['esPrincipal', 'DESC'], ['orden', 'ASC'], ['creado_en', 'ASC']],
     });
   }
 
