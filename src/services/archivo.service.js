@@ -4,6 +4,7 @@ const materiaRepository = require('../repositories/materia.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
 const etapaPublicacionService = require('./etapaPublicacion.service');
 const moderacionIaClient = require('./moderacionIa.client');
+const { sendPushNotification } = require('./notificacion.service');
 
 const FORMATO_PERMITIDO = ['pdf', 'png', 'jpg', 'c'];
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
@@ -65,7 +66,7 @@ function obtenerExtension(adjunto) {
 }
 
 class ArchivoService {
-  async actualizarEstado(archivoId, { estado, motivoRechazo }) {
+ async actualizarEstado(archivoId, { estado, motivoRechazo }) {
     const estadosValidos = ['pendiente', 'escaneando', 'revision_calidad', 'publicado', 'rechazado'];
 
     if (!estado || !estadosValidos.includes(estado)) {
@@ -83,6 +84,7 @@ class ArchivoService {
       }
     }
 
+    // 2. ACTUALIZAMOS EN BD
     const archivo = await archivoRepository.actualizarEstado(archivoId, estado, motivoRechazo);
     if (!archivo) {
       const error = new Error('Archivo no encontrado');
@@ -90,9 +92,31 @@ class ArchivoService {
       throw error;
     }
 
+    // 3. LÓGICA DE NOTIFICACIÓN
+    // Solo enviamos si el estado es 'publicado' o 'rechazado'
+    if (estado === 'publicado' || estado === 'rechazado') {
+      try {
+        // Buscamos al dueño del archivo para obtener su FcmToken
+        const usuarioPropietario = await usuarioRepository.buscarPorId(archivo.subidoPor);
+        
+        if (usuarioPropietario && usuarioPropietario.fcmToken) {
+          const esAprobado = estado === 'publicado';
+          const titulo = esAprobado ? '✅ Archivo Aprobado' : '❌ Archivo Rechazado';
+          const cuerpo = esAprobado 
+            ? `Tu archivo "${archivo.titulo}" ha sido aceptado y ya está público en ClassDrop.` 
+            : `Tu archivo "${archivo.titulo}" fue rechazado. Motivo: ${motivoRechazo}`;
+
+          // Disparamos la notificación
+          await sendPushNotification(usuarioPropietario.fcmToken, titulo, cuerpo);
+        }
+      } catch (notifError) {
+        // Capturamos el error para que la actualización del archivo no falle si la notificación falla
+        console.error('Error al enviar notificación push en archivo.service:', notifError);
+      }
+    }
+
     return archivo;
   }
-
   async crearArchivo({ titulo, descripcion, tipo, subidoPor, materiaId, adjuntos }) {
     if (!titulo || !materiaId || !subidoPor || !Array.isArray(adjuntos) || adjuntos.length === 0) {
       const error = new Error('Debe completar título, materia, usuario y adjuntar al menos un archivo');
@@ -200,6 +224,8 @@ class ArchivoService {
     await archivoRepository.eliminar(archivoId);
     return true;
   }
+
+  
 }
 
 module.exports = new ArchivoService();
