@@ -1,38 +1,30 @@
-// Importaciones modulares de Firebase Admin
-const { initializeApp, cert } = require('firebase-admin/app');
+const { initializeApp, cert, getApps } = require('firebase-admin/app');
 const { getMessaging } = require('firebase-admin/messaging');
 
-let serviceAccount;
+// 1. Verificamos si ya existe una app inicializada para evitar duplicados
+if (!getApps().length) {
+    let serviceAccount;
 
-if (process.env.FIREBASE_CREDENTIALS) {
-  try {
-    serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
-  } catch (error) {
-    console.error('Error al procesar FIREBASE_CREDENTIALS en Railway:', error);
-  }
-} else {
-  try {
-    // Modo local
-    serviceAccount = require('../../path-to-your-firebase-key.json'); 
-  } catch (error) {
-    console.warn('No se encontró el archivo JSON local de Firebase.');
-  }
+    if (process.env.FIREBASE_CREDENTIALS) {
+        try {
+            serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+        } catch (error) {
+            console.error('❌ Error crítico: JSON de Firebase inválido en env', error);
+        }
+    } else {
+        console.warn('⚠️ No se encontró la variable FIREBASE_CREDENTIALS');
+    }
+
+    if (serviceAccount) {
+        initializeApp({
+            credential: cert(serviceAccount)
+        });
+        console.log('✅ Firebase Admin inicializado exitosamente.');
+    } else {
+        console.error('❌ No se pudo inicializar Firebase: credenciales faltantes.');
+    }
 }
 
-// Variable para guardar la app
-let app;
-
-// Inicializamos la app con la función 'cert' importada
-if (serviceAccount) {
-  try {
-    app = initializeApp({
-      credential: cert(serviceAccount)
-    });
-    console.log('Firebase Admin inicializado correctamente.');
-  } catch (error) {
-    console.error('Error inicializando Firebase Admin:', error);
-  }
-}
-
-// Exportamos 'getMessaging' para que los servicios puedan enviar notificaciones
+// 2. Exportamos getMessaging directamente, 
+// pero asegurándonos de que ya se haya intentado inicializar arriba
 module.exports = { getMessaging };
