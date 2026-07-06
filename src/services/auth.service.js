@@ -137,22 +137,6 @@ class AuthService {
     await tokenRevocadoRepository.revocar(hashToken(token), usuarioId, expiraEn);
     return true;
   }
-
-  async actualizarFcmToken(usuarioId, fmcToken) {
-    const usuario = await usuarioRepository.buscarPorId(usuarioId);
-    if (!usuario) {
-      const error = new Error('Usuario no encontrado');
-      error.status = 404;
-      throw error;
-    }
-
-    const usuarioActualizado = await usuarioRepository.actualizar(usuarioId, { fmcToken });
-    return {
-      id: usuarioActualizado.id,
-      fmcToken: usuarioActualizado.fmcToken,
-      mensaje: 'Token FCM actualizado correctamente',
-    };
-  }
 }
 
 module.exports = new AuthService();

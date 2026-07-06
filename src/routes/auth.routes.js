@@ -8,6 +8,5 @@ router.post('/registro/admin', authController.registrarAdmin);
 router.post('/login', authController.login);
 router.get('/perfil', authMiddleware, authController.perfil);
 router.post('/logout', authMiddleware, authController.logout);
-router.put('/fcm-token', authMiddleware, authController.actualizarFcmToken);
 
 module.exports = router;
