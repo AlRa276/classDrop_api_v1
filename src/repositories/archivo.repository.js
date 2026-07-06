@@ -98,7 +98,7 @@ class ArchivoRepository {
       ],
       limit: limite,
       offset,
-      order: [['createdAt', direccion]],
+      order: [['creado_en', direccion]],
       subQuery: false,
     });
   }
@@ -166,7 +166,7 @@ class ArchivoRepository {
       ],
       limit: limite,
       offset,
-      order: [['createdAt', 'DESC']],
+      order: [['creado_en', 'DESC']],
       subQuery: false,
     });
   }
@@ -183,7 +183,7 @@ class ArchivoRepository {
       ],
       limit: limite,
       offset,
-      order: [['createdAt', 'ASC']], // los más antiguos primero, como una cola normal
+      order: [['creado_en', 'ASC']], // los más antiguos primero, como una cola normal
       subQuery: false,
     });
   }
