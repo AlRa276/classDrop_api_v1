@@ -31,6 +31,7 @@ class AuthController {
 
   async login(req, res, next) {
     try {
+      console.log('Body del login:', req.body); // DEBUG
       const resultado = await authService.login(req.body);
       return ok(res, resultado);
     } catch (err) {
