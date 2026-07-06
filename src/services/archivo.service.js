@@ -114,35 +114,23 @@ class ArchivoService {
       throw error;
     }
 
-    if (tipo === 'url') {
-      const urlsValidas = adjuntos.every(
-        (adjunto) => adjunto.urlStorage && validarUrl(adjunto.urlStorage)
-      );
+    const archivosValidos = adjuntos.every((adjunto) => {
+      const extension = obtenerExtension(adjunto);
+      if (!extension || !adjunto.tamanoBytes) return false;
+      return FORMATO_PERMITIDO.includes(extension);
+    });
 
-      if (!urlsValidas) {
-        const error = new Error('Solo se permiten enlaces de GitHub o YouTube');
-        error.status = 400;
-        throw error;
-      }
-    } else {
-      const archivosValidos = adjuntos.every((adjunto) => {
-        const extension = obtenerExtension(adjunto);
-        if (!extension || !adjunto.tamanoBytes) return false;
-        return FORMATO_PERMITIDO.includes(extension);
-      });
+    if (!archivosValidos) {
+      const error = new Error('Solo se permiten archivos con extensión .pdf, .png, .jpg y .c');
+      error.status = 400;
+      throw error;
+    }
 
-      if (!archivosValidos) {
-        const error = new Error('Solo se permiten archivos con extensión .pdf, .png, .jpg y .c');
-        error.status = 400;
-        throw error;
-      }
-
-      const tamanoValido = adjuntos.every((adjunto) => adjunto.tamanoBytes <= TAMANO_MAXIMO_BYTES);
-      if (!tamanoValido) {
-        const error = new Error('El tamaño máximo por archivo es 20 MB');
-        error.status = 400;
-        throw error;
-      }
+    const tamanoValido = adjuntos.every((adjunto) => adjunto.tamanoBytes <= TAMANO_MAXIMO_BYTES);
+    if (!tamanoValido) {
+      const error = new Error('El tamaño máximo por archivo es 20 MB');
+      error.status = 400;
+      throw error;
     }
 
     const archivo = await archivoRepository.crear({
@@ -157,52 +145,20 @@ class ArchivoService {
     const listaAdjuntos = adjuntos.map((adjunto, index) => ({
       archivoId: archivo.id,
       urlStorage: adjunto.urlStorage,
-      nombreOriginal: adjunto.nombreOriginal || (tipo === 'url' ? adjunto.urlStorage : null),
-      tipoMime: adjunto.tipoMime || (tipo === 'url' ? 'text/url' : null),
-      tamanoBytes: adjunto.tamanoBytes || 0,
+      nombreOriginal: adjunto.nombreOriginal,
+      tipoMime: adjunto.tipoMime,
+      tamanoBytes: adjunto.tamanoBytes,
       numPaginas: adjunto.numPaginas,
       orden: index,
     }));
 
     await archivoAdjuntoRepository.crearMultiples(listaAdjuntos);
     await etapaPublicacionService.inicializar(archivo.id);
-
-    // --- Microservicio de moderación IA (Nivel 1 a 4) ---
-    await etapaPublicacionService.avanzarEtapa(archivo.id, 'escaneo_seguridad', { progreso: 20 });
-
-    const primerAdjunto = listaAdjuntos[0];
-    const resultadoIa = await moderacionIaClient.moderarArchivo({
-      archivoId: archivo.id,
-      titulo,
-      descripcion,
-      nombreArchivo: primerAdjunto.nombreOriginal,
-      tipoMime: primerAdjunto.tipoMime,
-      tamanoBytes: primerAdjunto.tamanoBytes,
-      urlArchivo: primerAdjunto.urlStorage,
-    });
-
-    await archivoRepository.guardarResultadoIa(archivo.id, resultadoIa);
-
-    if (resultadoIa.veredictoFinal === 'aprobar') {
-      // La IA determinó que es claramente seguro: se publica solo, sin admin.
-      await archivoRepository.actualizarEstado(archivo.id, 'publicado');
-    } else if (resultadoIa.veredictoFinal === 'rechazar') {
-      // La IA determinó que claramente no cumple las normas: se rechaza solo.
-      await archivoRepository.actualizarEstado(
-        archivo.id,
-        'rechazado',
-        resultadoIa.motivo || 'Rechazado automáticamente por el sistema de moderación'
-      );
-    } else {
-      // Caso ambiguo (o el microservicio no respondió): queda en cola humana normal.
-      await etapaPublicacionService.avanzarEtapa(archivo.id, 'revision_calidad', { progreso: 50 });
-    }
-
-    return await archivoRepository.buscarPorId(archivo.id);
+    return archivo;
   }
 
-  async obtenerPorId(id) {
-    const archivo = await archivoRepository.buscarPorId(id);
+  async obtenerPorId(id, usuarioActualId) {
+    const archivo = await archivoRepository.buscarPorId(id, usuarioActualId);
     if (!archivo) {
       const error = new Error('Archivo no encontrado');
       error.status = 404;
@@ -215,12 +171,12 @@ class ArchivoService {
     return await archivoRepository.listarPublicados(params);
   }
 
-  async listarPorUsuario(usuarioId, params) {
-    return await archivoRepository.listarPorUsuario(usuarioId, params);
-  }
-
   async listarPendientes(params) {
     return await archivoRepository.listarPendientes(params);
+  }
+
+  async listarPorUsuario(usuarioId, params) {
+    return await archivoRepository.listarPorUsuario(usuarioId, params);
   }
 
   async contarPublicadosPorUsuario(usuarioId) {

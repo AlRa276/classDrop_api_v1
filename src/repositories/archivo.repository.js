@@ -1,10 +1,16 @@
 const { Op, Sequelize, QueryTypes } = require('sequelize');
 const { Archivo, Usuario, Materia, ArchivoAdjunto, Comentario, sequelize } = require('../models');
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Contadores calculados con subconsultas correlacionadas, para no hacer N+1 peticiones
-// desde el front. Se agregan como columnas extra junto a los atributos normales de Archivo.
-const ATRIBUTOS_CON_CONTADORES = {
-  include: [
+// desde el front. Si se conoce el usuario que pregunta (usuarioActualId), también se
+// agrega si ESE usuario específico ya le dio like/dislike/guardado a cada archivo —
+// sin esto, el front no puede mantener el botón resaltado después de recargar la lista.
+function atributosDeArchivo(usuarioActualId) {
+  const idSeguro = usuarioActualId && UUID_REGEX.test(usuarioActualId) ? usuarioActualId : null;
+
+  const columnas = [
     [
       Sequelize.literal(`(SELECT COUNT(*) FROM likes_archivos WHERE likes_archivos.archivo_id = "Archivo"."id")`),
       'totalLikes',
@@ -21,29 +27,48 @@ const ATRIBUTOS_CON_CONTADORES = {
       Sequelize.literal(`(SELECT COUNT(*) FROM comentarios WHERE comentarios.archivo_id = "Archivo"."id" AND comentarios.eliminado = false)`),
       'totalComentarios',
     ],
-  ],
-};
+  ];
+
+  if (idSeguro) {
+    columnas.push(
+      [
+        Sequelize.literal(`EXISTS(SELECT 1 FROM likes_archivos WHERE likes_archivos.archivo_id = "Archivo"."id" AND likes_archivos.usuario_id = '${idSeguro}')`),
+        'isLikedByMe',
+      ],
+      [
+        Sequelize.literal(`EXISTS(SELECT 1 FROM dislikes_archivos WHERE dislikes_archivos.archivo_id = "Archivo"."id" AND dislikes_archivos.usuario_id = '${idSeguro}')`),
+        'isDislikedByMe',
+      ],
+      [
+        Sequelize.literal(`EXISTS(SELECT 1 FROM guardados_archivos WHERE guardados_archivos.archivo_id = "Archivo"."id" AND guardados_archivos.usuario_id = '${idSeguro}')`),
+        'isGuardadoByMe',
+      ]
+    );
+  }
+
+  return { include: columnas };
+}
 
 // Igual que arriba, pero además trae el nivel de riesgo (FUNCIÓN 2: fn_nivel_riesgo_archivo),
 // solo para la cola de moderación, donde sí tiene sentido mostrarlo.
-const ATRIBUTOS_MODERACION = {
-  include: [
-    ...ATRIBUTOS_CON_CONTADORES.include,
-    [
-      Sequelize.literal(`fn_nivel_riesgo_archivo("Archivo"."id")`),
-      'nivelRiesgo',
+function atributosDeModeracion(usuarioActualId) {
+  const base = atributosDeArchivo(usuarioActualId);
+  return {
+    include: [
+      ...base.include,
+      [Sequelize.literal(`fn_nivel_riesgo_archivo("Archivo"."id")`), 'nivelRiesgo'],
     ],
-  ],
-};
+  };
+}
 
 class ArchivoRepository {
   async crear(datos) {
     return await Archivo.create(datos);
   }
 
-  async buscarPorId(id) {
+  async buscarPorId(id, usuarioActualId) {
     return await Archivo.findByPk(id, {
-      attributes: ATRIBUTOS_CON_CONTADORES,
+      attributes: atributosDeArchivo(usuarioActualId),
       include: [
         { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] },
         { model: Materia, as: 'materia' },
@@ -52,20 +77,20 @@ class ArchivoRepository {
     });
   }
 
-  async listarPublicados({ materiaId, search, orden = 'recientes', limite = 20, offset = 0 } = {}) {
+  async listarPublicados({ materiaId, search, orden = 'recientes', limite = 20, offset = 0, usuarioActualId } = {}) {
     const where = { estado: 'publicado' };
     if (materiaId) where.materiaId = materiaId;
     if (search) where.titulo = { [Op.iLike]: `%${search}%` };
 
     if (orden === 'populares') {
-      return await this._listarPorPopularidad({ materiaId, search, limite, offset });
+      return await this._listarPorPopularidad({ materiaId, search, limite, offset, usuarioActualId });
     }
 
     const direccion = orden === 'antiguos' ? 'ASC' : 'DESC';
 
     return await Archivo.findAndCountAll({
       where,
-      attributes: ATRIBUTOS_CON_CONTADORES,
+      attributes: atributosDeArchivo(usuarioActualId),
       include: [
         { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] },
         { model: Materia, as: 'materia' },
@@ -73,7 +98,7 @@ class ArchivoRepository {
       ],
       limit: limite,
       offset,
-      order: [['creado_en', direccion]],
+      order: [['createdAt', direccion]],
       subQuery: false,
     });
   }
@@ -82,7 +107,7 @@ class ArchivoRepository {
   // + FUNCIÓN 1 (fn_popularidad_archivo) calculan el orden en SQL; luego traemos esos mismos
   // archivos con Sequelize (para mantener el mismo formato de respuesta que el resto del API)
   // y los reordenamos según ese cálculo.
-  async _listarPorPopularidad({ materiaId, search, limite, offset }) {
+  async _listarPorPopularidad({ materiaId, search, limite, offset, usuarioActualId }) {
     let filtros = '';
     const reemplazos = { limite, offset };
 
@@ -114,7 +139,7 @@ class ArchivoRepository {
 
     const archivos = await Archivo.findAll({
       where: { id: { [Op.in]: ids } },
-      attributes: ATRIBUTOS_CON_CONTADORES,
+      attributes: atributosDeArchivo(usuarioActualId),
       include: [
         { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] },
         { model: Materia, as: 'materia' },
@@ -128,37 +153,37 @@ class ArchivoRepository {
     return { count, rows };
   }
 
-  async listarPorUsuario(usuarioId, { estado, limite = 20, offset = 0 } = {}) {
+  async listarPorUsuario(usuarioId, { estado, limite = 20, offset = 0, usuarioActualId } = {}) {
     const where = { subidoPor: usuarioId };
     if (estado) where.estado = estado;
 
     return await Archivo.findAndCountAll({
       where,
-      attributes: ATRIBUTOS_CON_CONTADORES,
+      attributes: atributosDeArchivo(usuarioActualId ?? usuarioId),
       include: [
         { model: Materia, as: 'materia' },
         { model: ArchivoAdjunto, as: 'adjuntos' },
       ],
       limit: limite,
       offset,
-      order: [['creado_en', 'DESC']],
+      order: [['createdAt', 'DESC']],
       subQuery: false,
     });
   }
 
   // Cola de moderación: todo lo que un admin todavía tiene que revisar.
   // Incluye nivelRiesgo (FUNCIÓN 2) para priorizar qué revisar primero.
-  async listarPendientes({ limite = 50, offset = 0 } = {}) {
+  async listarPendientes({ limite = 50, offset = 0, usuarioActualId } = {}) {
     return await Archivo.findAndCountAll({
       where: { estado: { [Op.in]: ['pendiente', 'escaneando', 'revision_calidad'] } },
-      attributes: ATRIBUTOS_MODERACION,
+      attributes: atributosDeModeracion(usuarioActualId),
       include: [
         { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] },
         { model: Materia, as: 'materia' },
       ],
       limit: limite,
       offset,
-      order: [['creado_en', 'ASC']], // los más antiguos primero, como una cola normal
+      order: [['createdAt', 'ASC']], // los más antiguos primero, como una cola normal
       subQuery: false,
     });
   }

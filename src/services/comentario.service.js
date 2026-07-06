@@ -41,8 +41,8 @@ class ComentarioService {
     return await comentarioRepository.crear({ usuarioId, archivoId, contenido });
   }
 
-  async listarPorArchivo(archivoId) {
-    return await comentarioRepository.listarPorArchivo(archivoId);
+  async listarPorArchivo(archivoId, usuarioId) {
+    return await comentarioRepository.listarPorArchivo(archivoId, usuarioId);
   }
 
   async eliminarComentario(usuarioId, comentarioId) {

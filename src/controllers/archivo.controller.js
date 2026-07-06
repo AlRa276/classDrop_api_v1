@@ -20,7 +20,7 @@ class ArchivoController {
 
   async obtenerPorId(req, res, next) {
     try {
-      const archivo = await archivoService.obtenerPorId(req.params.id);
+      const archivo = await archivoService.obtenerPorId(req.params.id, req.usuario?.id);
       return ok(res, archivo);
     } catch (err) {
       next(err);
@@ -48,6 +48,21 @@ class ArchivoController {
         orden,
         limite: limite ? Number(limite) : 20,
         offset: offset ? Number(offset) : 0,
+        usuarioActualId: req.usuario?.id,
+      });
+      return ok(res, resultado);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async listarPendientes(req, res, next) {
+    try {
+      const { limite, offset } = req.query;
+      const resultado = await archivoService.listarPendientes({
+        limite: limite ? Number(limite) : 50,
+        offset: offset ? Number(offset) : 0,
+        usuarioActualId: req.usuario?.id,
       });
       return ok(res, resultado);
     } catch (err) {
@@ -62,19 +77,7 @@ class ArchivoController {
         estado,
         limite: limite ? Number(limite) : 20,
         offset: offset ? Number(offset) : 0,
-      });
-      return ok(res, resultado);
-    } catch (err) {
-      next(err);
-    }
-  }
-
-  async listarPendientes(req, res, next) {
-    try {
-      const { limite, offset } = req.query;
-      const resultado = await archivoService.listarPendientes({
-        limite: limite ? Number(limite) : 50,
-        offset: offset ? Number(offset) : 0,
+        usuarioActualId: req.usuario?.id,
       });
       return ok(res, resultado);
     } catch (err) {
