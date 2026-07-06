@@ -59,22 +59,26 @@ class AuthController {
   }
   async actualizarFcmToken(req, res, next) {
     try {
-      const { fcmToken } = req.body;
-      const { Usuario } = require('../models');
-      
-      const usuario = await Usuario.findByPk(req.usuario.id);
-      if (!usuario) {
-        return res.status(404).json({ message: 'Usuario no encontrado' });
-      }
-      
-      usuario.fcmToken = fcmToken;
-      await usuario.save();
-      
-      return res.status(200).json({ message: 'FCM Token actualizado correctamente' });
+        const { fcmToken } = req.body;
+        // Verifica si llega el token
+        console.log('Token recibido en backend:', fcmToken); 
+
+        const { Usuario } = require('../models');
+        
+        const usuario = await Usuario.findByPk(req.usuario.id);
+        if (!usuario) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+        
+        // Asignación explícita
+        usuario.fcmToken = fcmToken;
+        await usuario.save(); // <--- IMPORTANTE: Asegúrate de que esto se ejecute
+        
+        return res.status(200).json({ message: 'FCM Token guardado' });
     } catch (err) {
-      next(err);
+        next(err);
     }
-  }
+}
 }
 
 module.exports = new AuthController();

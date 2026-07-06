@@ -36,10 +36,10 @@ module.exports = (sequelize) => {
             type: DataTypes.BOOLEAN,
             defaultValue: true
         },
-        fmcToken: {
+        fcmToken: {
             type: DataTypes.TEXT,
             allowNull: true,
-            field: 'fmc_token'
+            field: 'fcm_token'
         }
 
     }, {
