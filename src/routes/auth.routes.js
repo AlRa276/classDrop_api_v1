@@ -9,4 +9,7 @@ router.post('/login', authController.login);
 router.get('/perfil', authMiddleware, authController.perfil);
 router.post('/logout', authMiddleware, authController.logout);
 
+// NUEVA RUTA PARA ACTUALIZAR TOKEN FCM
+router.put('/fcm-token', authMiddleware, authController.actualizarFcmToken);
+
 module.exports = router;
