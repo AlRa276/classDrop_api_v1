@@ -215,6 +215,26 @@ class ArchivoRepository {
     );
   }
 
+  // Hidrata una lista de ids de archivo con el mismo formato completo que usa el resto
+  // del API (autor, materia, adjuntos, contadores, y mi propio like/dislike/guardado).
+  // Se usa en "mis descargas" y "mis favoritos" del perfil, para no duplicar esta lógica.
+  async obtenerVariosPorId(ids, usuarioActualId) {
+    if (!ids || ids.length === 0) return [];
+
+    const archivos = await Archivo.findAll({
+      where: { id: { [Op.in]: ids } },
+      attributes: atributosDeArchivo(usuarioActualId),
+      include: [
+        { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] },
+        { model: Materia, as: 'materia' },
+        { model: ArchivoAdjunto, as: 'adjuntos' },
+      ],
+    });
+
+    const porId = new Map(archivos.map((a) => [a.id, a]));
+    return ids.map((id) => porId.get(id)).filter(Boolean); // conserva el orden original (más reciente primero)
+  }
+
   async eliminar(id) {
     const archivo = await Archivo.findByPk(id);
     if (!archivo) return null;

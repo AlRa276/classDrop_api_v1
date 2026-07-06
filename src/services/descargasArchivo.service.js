@@ -21,6 +21,13 @@ class DescargasArchivoService {
     return await descargasArchivoRepository.registrarDescarga(usuarioId, archivoId, adjuntoId);
   }
 
+  // Para la sección "Descargas" del perfil: devuelve los archivos completos
+  // (con autor, materia, contadores, mi like/dislike/guardado), no el log crudo.
+  async listarArchivosDescargados(usuarioId) {
+    const ids = await descargasArchivoRepository.idsArchivosDescargados(usuarioId);
+    return await archivoRepository.obtenerVariosPorId(ids, usuarioId);
+  }
+
   async listarPorUsuario(usuarioId) {
     return await descargasArchivoRepository.listarPorUsuario(usuarioId);
   }

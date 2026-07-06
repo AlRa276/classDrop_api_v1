@@ -5,6 +5,7 @@ const { authMiddleware } = require('../middlewares/auth.middleware');
 
 router.post('/', authMiddleware, descargasArchivoController.registrar);
 router.get('/usuario', authMiddleware, descargasArchivoController.listarPorUsuario);
+router.get('/usuario/archivos', authMiddleware, descargasArchivoController.listarArchivosDescargados);
 router.get('/usuario/contador', authMiddleware, descargasArchivoController.contarPorUsuario);
 router.get('/archivo/:id', authMiddleware, descargasArchivoController.listarPorArchivo);
 

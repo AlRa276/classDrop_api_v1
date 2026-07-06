@@ -13,6 +13,16 @@ class GuardadosArchivoRepository {
     return await GuardadosArchivo.destroy({ where: { usuarioId, archivoId } });
   }
 
+  // Ids de archivo guardados por el usuario, del más reciente al más antiguo.
+  async idsArchivosGuardados(usuarioId) {
+    const filas = await GuardadosArchivo.findAll({
+      where: { usuarioId },
+      attributes: ['archivoId'],
+      order: [['creado_en', 'DESC']],
+    });
+    return filas.map((f) => f.archivoId);
+  }
+
   async listarPorUsuario(usuarioId, limit = 50, offset = 0) {
     return await GuardadosArchivo.findAll({
       where: { usuarioId },

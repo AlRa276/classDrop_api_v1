@@ -44,6 +44,13 @@ class GuardadosArchivoService {
     return await guardadosArchivoRepository.listarPorUsuario(usuarioId, limit, offset);
   }
 
+  // Para la sección "Favoritos" del perfil: archivos completos, mismo formato
+  // que el resto del feed (autor, materia, contadores, mi like/dislike/guardado).
+  async listarArchivosGuardados(usuarioId) {
+    const ids = await guardadosArchivoRepository.idsArchivosGuardados(usuarioId);
+    return await archivoRepository.obtenerVariosPorId(ids, usuarioId);
+  }
+
   async contarPorUsuario(usuarioId) {
     return await guardadosArchivoRepository.contarPorUsuario(usuarioId);
   }

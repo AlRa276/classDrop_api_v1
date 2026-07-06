@@ -24,6 +24,15 @@ class DescargasArchivoController {
     }
   }
 
+  async listarArchivosDescargados(req, res, next) {
+    try {
+      const archivos = await descargasArchivoService.listarArchivosDescargados(req.usuario.id);
+      return ok(res, archivos);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async listarPorArchivo(req, res, next) {
     try {
       const descargas = await descargasArchivoService.listarPorArchivo(req.params.archivoId);
