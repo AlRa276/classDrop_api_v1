@@ -56,6 +56,10 @@ module.exports = (sequelize) => {
             foreignKey: 'usuarioId',
             as: 'autor'
         });
+        Comentario.belongsTo(models.Archivo, {
+            foreignKey: 'archivoId',
+            as: 'archivo'
+        });
     };
 
     return Comentario;
