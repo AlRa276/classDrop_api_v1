@@ -34,6 +34,10 @@ module.exports = (sequelize) => {
         eliminado: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
+        },
+        oculto: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
         }
     }, {
         sequelize,

@@ -11,7 +11,7 @@ module.exports = (sequelize) => {
         },
         reportadoPor: {
             type: DataTypes.UUID,
-            allowNull: false,
+            allowNull: true,
             field: 'reportado_por',
             references: {
                 model: 'usuarios',

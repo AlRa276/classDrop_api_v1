@@ -44,11 +44,10 @@ class ComentarioRepository {
 
   async listarPorArchivo(archivoId, usuarioId = null) {
     return await Comentario.findAll({
-      where: { archivoId, eliminado: false },
+      // "oculto: false" excluye los comentarios que llegaron a 5 dislikes y
+      // están esperando revisión del admin en la cola de reportes.
+      where: { archivoId, eliminado: false, oculto: false },
       attributes: atributosConReacciones(usuarioId),
-      // Sequelize sustituye :usuarioId dentro de los Sequelize.literal de arriba.
-      // Si no hay usuario autenticado, usuarioId queda null y las comparaciones
-      // "= NULL" simplemente no matchean nada (isLiked/isDisliked quedan false).
       replacements: { usuarioId },
       include: [{ model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto', 'avatarUrl'] }],
       order: [['creado_en', 'ASC']],
@@ -63,6 +62,29 @@ class ComentarioRepository {
     const comentario = await Comentario.findByPk(id);
     if (!comentario) return null;
     return await comentario.update({ eliminado: true });
+  }
+
+  // El comentario llega al umbral de dislikes: se oculta mientras el admin revisa.
+  async marcarOculto(id) {
+    const comentario = await Comentario.findByPk(id);
+    if (!comentario) return null;
+    return await comentario.update({ oculto: true });
+  }
+
+  // El admin descarta el reporte: el comentario no tenía ningún problema real.
+  async restaurarVisible(id) {
+    const comentario = await Comentario.findByPk(id);
+    if (!comentario) return null;
+    return await comentario.update({ oculto: false });
+  }
+
+  // El admin confirma la falta: se borra DEFINITIVAMENTE (a diferencia de
+  // marcarEliminado, que solo pone la bandera "eliminado" para un borrado propio).
+  async eliminarDefinitivo(id) {
+    const comentario = await Comentario.findByPk(id);
+    if (!comentario) return null;
+    await comentario.destroy();
+    return true;
   }
 
   async contarPorUsuario(usuarioId) {

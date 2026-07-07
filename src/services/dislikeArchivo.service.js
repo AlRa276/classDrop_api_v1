@@ -2,6 +2,11 @@ const dislikeArchivoRepository = require('../repositories/dislikeArchivo.reposit
 const likeArchivoRepository = require('../repositories/likeArchivo.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
 const archivoRepository = require('../repositories/archivo.repository');
+const reporteRepository = require('../repositories/reporte.repository');
+
+// Al llegar a este número de dislikes, el archivo se oculta automáticamente
+// de los estudiantes y pasa a la cola de reportes para que un admin decida.
+const UMBRAL_DISLIKES_ARCHIVO = 5;
 
 class DislikeArchivoService {
   async darDislike(usuarioId, archivoId) {
@@ -32,7 +37,23 @@ class DislikeArchivoService {
       await likeArchivoRepository.eliminar(usuarioId, archivoId);
     }
 
-    return await dislikeArchivoRepository.crear(usuarioId, archivoId);
+    const dislike = await dislikeArchivoRepository.crear(usuarioId, archivoId);
+
+    // El archivo llega al umbral: se oculta y se manda a revisión de admin.
+    // Arriba ya validamos que archivo.estado === 'publicado', así que esto
+    // solo puede disparar UNA vez por archivo (una vez oculto, ya no vuelve
+    // a pasar por esta validación hasta que un admin lo restaure).
+    const totalDislikes = await dislikeArchivoRepository.contarPorArchivo(archivoId);
+    if (totalDislikes >= UMBRAL_DISLIKES_ARCHIVO) {
+      await archivoRepository.ocultarPorDislikes(archivoId);
+      await reporteRepository.crear({
+        reportadoPor: null, // reporte automático del sistema, sin un usuario específico
+        tipoContenido: 'archivo',
+        archivoId,
+      });
+    }
+
+    return dislike;
   }
 
   async quitarDislike(usuarioId, archivoId) {

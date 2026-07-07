@@ -2,6 +2,11 @@ const dislikeComentarioRepository = require('../repositories/dislikeComentario.r
 const likesComentarioRepository = require('../repositories/likesComentario.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
 const comentarioRepository = require('../repositories/comentario.repository');
+const reporteRepository = require('../repositories/reporte.repository');
+
+// Al llegar a este número de dislikes, el comentario se oculta automáticamente
+// y pasa a la cola de reportes para que un admin decida.
+const UMBRAL_DISLIKES_COMENTARIO = 5;
 
 class DislikeComentarioService {
   async darDislike(usuarioId, comentarioId) {
@@ -13,7 +18,7 @@ class DislikeComentarioService {
     }
 
     const comentario = await comentarioRepository.buscarPorId(comentarioId);
-    if (!comentario || comentario.eliminado) {
+    if (!comentario || comentario.eliminado || comentario.oculto) {
       const error = new Error('Comentario no disponible para reaccionar');
       error.status = 400;
       throw error;
@@ -32,7 +37,22 @@ class DislikeComentarioService {
       await likesComentarioRepository.eliminar(usuarioId, comentarioId);
     }
 
-    return await dislikeComentarioRepository.crear(usuarioId, comentarioId);
+    const dislike = await dislikeComentarioRepository.crear(usuarioId, comentarioId);
+
+    // El comentario llega al umbral: se oculta y se manda a revisión de admin.
+    // Arriba ya validamos "!comentario.oculto", así que esto solo dispara
+    // UNA vez por comentario.
+    const totalDislikes = await dislikeComentarioRepository.contarPorComentario(comentarioId);
+    if (totalDislikes >= UMBRAL_DISLIKES_COMENTARIO) {
+      await comentarioRepository.marcarOculto(comentarioId);
+      await reporteRepository.crear({
+        reportadoPor: null, // reporte automático del sistema, sin un usuario específico
+        tipoContenido: 'comentario',
+        comentarioId,
+      });
+    }
+
+    return dislike;
   }
 
   async quitarDislike(usuarioId, comentarioId) {

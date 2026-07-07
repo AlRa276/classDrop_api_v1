@@ -1,7 +1,7 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TYPE rol_usuario             AS ENUM ('estudiante', 'admin');
-CREATE TYPE estado_archivo          AS ENUM ('pendiente', 'escaneando', 'revision_calidad', 'publicado', 'rechazado');
+CREATE TYPE estado_archivo          AS ENUM ('pendiente', 'escaneando', 'revision_calidad', 'publicado', 'rechazado', 'oculto_dislikes');
 CREATE TYPE tipo_archivo            AS ENUM ('pdf', 'docx', 'url', 'otro');
 CREATE TYPE estado_norma            AS ENUM ('activa', 'inactiva');
 CREATE TYPE estado_reporte           AS ENUM ('pendiente', 'resuelto', 'descartado');
@@ -148,7 +148,8 @@ CREATE TABLE comentarios (
     archivo_id UUID        NOT NULL REFERENCES archivos(id) ON DELETE CASCADE,
     usuario_id UUID        NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
     creado_en  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    eliminado  BOOLEAN     NOT NULL DEFAULT FALSE
+    eliminado  BOOLEAN     NOT NULL DEFAULT FALSE,
+    oculto BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE likes_comentarios (
@@ -168,7 +169,7 @@ CREATE TABLE dislikes_comentarios (
 
 CREATE TABLE reportes (
     id             UUID                     PRIMARY KEY DEFAULT gen_random_uuid(),
-    reportado_por  UUID                     NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    reportado_por  UUID                     REFERENCES usuarios(id) ON DELETE CASCADE,
     tipo_contenido tipo_contenido_reportado NOT NULL,
     archivo_id     UUID                     REFERENCES archivos(id)    ON DELETE CASCADE,
     comentario_id  UUID                     REFERENCES comentarios(id) ON DELETE CASCADE,

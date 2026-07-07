@@ -236,6 +236,21 @@ class ArchivoRepository {
     return ids.map((id) => porId.get(id)).filter(Boolean); // conserva el orden original (más reciente primero)
   }
 
+  async ocultarPorDislikes(id) {
+    const archivo = await Archivo.findByPk(id);
+    if (!archivo) return null;
+    return await archivo.update({ estado: 'oculto_dislikes' });
+  }
+
+  // El admin descarta el reporte: el archivo no tenía ningún problema real,
+  // así que vuelve a estar publicado y visible para los estudiantes.
+  async restaurarPublicado(id) {
+    const archivo = await Archivo.findByPk(id);
+    if (!archivo) return null;
+    return await archivo.update({ estado: 'publicado' });
+  }
+
+
   async eliminar(id) {
     const archivo = await Archivo.findByPk(id);
     if (!archivo) return null;

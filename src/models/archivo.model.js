@@ -21,7 +21,7 @@ module.exports = (sequelize) => {
             defaultValue: 'pdf'
         },
         estado: {
-            type: DataTypes.ENUM('pendiente', 'escaneando', 'revision_calidad', 'publicado', 'rechazado'),
+            type: DataTypes.ENUM('pendiente', 'escaneando', 'revision_calidad', 'publicado', 'rechazado', 'oculto_dislikes'),
             defaultValue: 'pendiente'
         },
         motivoRechazo: {

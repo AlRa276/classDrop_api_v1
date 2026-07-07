@@ -1,6 +1,8 @@
 const reporteRepository = require('../repositories/reporte.repository');
 const archivoRepository = require('../repositories/archivo.repository');
 const comentarioRepository = require('../repositories/comentario.repository');
+const dislikeArchivoRepository = require('../repositories/dislikeArchivo.repository');
+const dislikeComentarioRepository = require('../repositories/dislikeComentario.repository');
 
 class ReporteService {
   async crearReporte({ usuarioId, tipoContenido, archivoId, comentarioId, puntuacion, motivo }) {
@@ -53,6 +55,17 @@ class ReporteService {
     return await reporteRepository.listarPendientes();
   }
 
+  // El admin resuelve un reporte (manual o automático por dislikes) con UNA
+  // de dos decisiones posibles:
+  //
+  //  - estado = 'descartado' -> "visto bueno": el contenido está bien, no
+  //    había ninguna falta real. Se restaura (vuelve a ser visible/publicado)
+  //    y se le limpian los dislikes acumulados para que no se vuelva a
+  //    ocultar solo de inmediato.
+  //
+  //  - estado = 'resuelto'   -> "visto malo": se confirma la falta. El
+  //    contenido se BORRA definitivamente de la base de datos. No hay
+  //    vuelta atrás.
   async resolverReporte({ reporteId, resueltoPor, estado, accionTomada }) {
     if (!['resuelto', 'descartado'].includes(estado)) {
       const error = new Error('Estado de reporte inválido');
@@ -60,14 +73,48 @@ class ReporteService {
       throw error;
     }
 
-    const reporte = await reporteRepository.actualizarEstado(reporteId, estado, resueltoPor, accionTomada);
+    const reporte = await reporteRepository.buscarPorId(reporteId);
     if (!reporte) {
       const error = new Error('Reporte no encontrado');
       error.status = 404;
       throw error;
     }
 
-    return reporte;
+    if (reporte.estado !== 'pendiente') {
+      const error = new Error('Este reporte ya fue resuelto anteriormente');
+      error.status = 409;
+      throw error;
+    }
+
+    if (estado === 'resuelto') {
+      // Se confirma la falta -> se borra el contenido definitivamente.
+      // OJO: esto también borra en cascada la propia fila de "reportes"
+      // (archivo_id / comentario_id tienen ON DELETE CASCADE en la tabla
+      // reportes), así que no hay nada que actualizar después.
+      if (reporte.tipoContenido === 'archivo') {
+        await archivoRepository.eliminar(reporte.archivoId);
+      } else {
+        await comentarioRepository.eliminarDefinitivo(reporte.comentarioId);
+      }
+
+      return {
+        id: reporteId,
+        estado: 'resuelto',
+        accionTomada: accionTomada || 'Contenido eliminado definitivamente',
+      };
+    }
+
+    // descartado -> el contenido no tenía problema real: se restaura y se
+    // le limpian los dislikes acumulados.
+    if (reporte.tipoContenido === 'archivo') {
+      await archivoRepository.restaurarPublicado(reporte.archivoId);
+      await dislikeArchivoRepository.eliminarTodosPorArchivo(reporte.archivoId);
+    } else {
+      await comentarioRepository.restaurarVisible(reporte.comentarioId);
+      await dislikeComentarioRepository.eliminarTodosPorComentario(reporte.comentarioId);
+    }
+
+    return await reporteRepository.actualizarEstado(reporteId, estado, resueltoPor, accionTomada);
   }
 }
 
