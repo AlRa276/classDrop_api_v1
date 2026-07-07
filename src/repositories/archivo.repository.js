@@ -163,6 +163,7 @@ class ArchivoRepository {
       include: [
         { model: Materia, as: 'materia' },
         { model: ArchivoAdjunto, as: 'adjuntos' },
+        { model: Usuario, as: 'autor' }, 
       ],
       limit: limite,
       offset,

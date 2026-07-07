@@ -5,10 +5,19 @@ const nodemailer = require('nodemailer');
 const usuarioRepository = require('../repositories/usuario.repository');
 const tokenRevocadoRepository = require('../repositories/tokenRevocado.repository');
 const { hashToken } = require('../utils/tokenHash');
+const db = require('../models');
 
 const DOMINIO_VALIDO = '@ids.upchiapas.edu.mx';
 const DOMINIO_VALIDO_2 = '@it2id.upchiapas.edu.mx';
 const SALT_ROUNDS = 10;
+
+const normalizeEmail = (correo = '') => String(correo).trim().toLowerCase();
+const esCorreoAdmin = (correo = '') => {
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  return Boolean(adminEmail) && normalizeEmail(correo) === adminEmail;
+};
+const resolverRol = (correo = '', rolPorDefecto = 'estudiante') =>
+  esCorreoAdmin(correo) ? 'admin' : rolPorDefecto;
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -20,13 +29,15 @@ const transporter = nodemailer.createTransport({
 
 class AuthService {
   async registrar({ nombreCompleto, correo, contrasena }) {
-    if (!correo.toLowerCase().endsWith(DOMINIO_VALIDO) && !correo.toLowerCase().endsWith(DOMINIO_VALIDO_2)) {
+    const correoNormalizado = normalizeEmail(correo);
+
+    if (!correoNormalizado.endsWith(DOMINIO_VALIDO) && !correoNormalizado.endsWith(DOMINIO_VALIDO_2)) {
       const error = new Error('El correo debe ser institucional (@upchiapas.edu.mx)');
       error.status = 400;
       throw error;
     }
 
-    const existente = await usuarioRepository.buscarPorCorreo(correo);
+    const existente = await usuarioRepository.buscarPorCorreo(correoNormalizado);
     if (existente) {
       const error = new Error('El correo ya está registrado');
       error.status = 409;
@@ -34,24 +45,34 @@ class AuthService {
     }
 
     const contrasenaHash = await bcrypt.hash(contrasena, SALT_ROUNDS);
+    const rol = resolverRol(correoNormalizado, 'estudiante');
 
     const usuario = await usuarioRepository.crear({
       nombreCompleto,
-      correo: correo.toLowerCase(),
+      correo: correoNormalizado,
       contrasenaHash,
+      rol,
     });
 
     return usuario;
   }
 
   async registrarAdmin({ nombreCompleto, correo, contrasena}){
-    if (!correo.toLowerCase().endsWith(DOMINIO_VALIDO)) {
-      const error = new Error('El correo debe ser institucional (@upchiapas.edu.mx)');
+    const correoNormalizado = normalizeEmail(correo);
+
+    if (!correoNormalizado.endsWith(DOMINIO_VALIDO) && !esCorreoAdmin(correoNormalizado)) {
+      const error = new Error('El correo debe ser institucional (@upchiapas.edu.mx) o coincidir con ADMIN_EMAIL');
       error.status = 400;
       throw error;
     }
 
-    const existente = await usuarioRepository.buscarPorCorreo(correo);
+    if (!esCorreoAdmin(correoNormalizado)) {
+      const error = new Error('Solo se permite crear el administrador con el correo configurado en el entorno');
+      error.status = 403;
+      throw error;
+    }
+
+    const existente = await usuarioRepository.buscarPorCorreo(correoNormalizado);
     if (existente) {
       const error = new Error('El correo ya está registrado');
       error.status = 409;
@@ -62,7 +83,7 @@ class AuthService {
 
     const usuario = await usuarioRepository.crear({
       nombreCompleto,
-      correo: correo.toLowerCase(),
+      correo: correoNormalizado,
       contrasenaHash,
       rol: 'admin',
     });
@@ -71,7 +92,8 @@ class AuthService {
   }
 
   async login({ correo, contrasena, fmcToken, rememberMe }) {
-    const usuario = await usuarioRepository.buscarPorCorreo(correo.toLowerCase());
+    const correoNormalizado = normalizeEmail(correo);
+    const usuario = await usuarioRepository.buscarPorCorreo(correoNormalizado);
   
     if (!usuario) {
       const error = new Error('Credenciales inválidas');
@@ -95,14 +117,49 @@ class AuthService {
     if (fmcToken) {
       await usuarioRepository.actualizar(usuario.id, { fcmToken });
     }
-  
+    const rolFinal = resolverRol(usuario.correo, usuario.rol || 'estudiante');
+    if (rolFinal !== usuario.rol) {
+      await usuarioRepository.actualizar(usuario.id, { rol: rolFinal });
+    }
+
+    // Si el correo es el ADMIN_EMAIL, omitimos 2FA y devolvemos el token directamente
+    if (esCorreoAdmin(correoNormalizado)) {
+      const token = jwt.sign(
+        { id: usuario.id, rol: 'admin' },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      let rememberToken = null;
+      if (rememberMe) {
+        rememberToken = jwt.sign(
+          { id: usuario.id },
+          process.env.JWT_SECRET,
+          { expiresIn: '7d' }
+        );
+        await usuarioRepository.actualizar(usuario.id, { rememberToken });
+      }
+
+      return {
+        token,
+        rememberToken,
+        usuario: {
+          id: usuario.id,
+          nombreCompleto: usuario.nombreCompleto,
+          correo: usuario.correo,
+          rol: 'admin',
+          fcmToken: usuario.fcmToken,
+        },
+      };
+    }
+
     // 🛡️ REVISIÓN DEL PERIODO DE 7 DÍAS
     if (usuario.rememberToken) {
       const isValidToken = jwt.verify(usuario.rememberToken, process.env.JWT_SECRET, (err) => !err);
       
       if (isValidToken) {
         const token = jwt.sign(
-          { id: usuario.id, rol: usuario.rol },
+          { id: usuario.id, rol: rolFinal },
           process.env.JWT_SECRET,
           { expiresIn: '7d' }
         );
@@ -112,7 +169,7 @@ class AuthService {
             id: usuario.id,
             nombreCompleto: usuario.nombreCompleto,
             correo: usuario.correo,
-            rol: usuario.rol,
+            rol: rolFinal,
             fcmToken: usuario.fcmToken,
           },
         };
@@ -169,8 +226,13 @@ class AuthService {
       two_factor_secret: null
     });
   
+    const rolFinal = resolverRol(usuario.correo, usuario.rol || 'estudiante');
+    if (rolFinal !== usuario.rol) {
+      await usuarioRepository.actualizar(userId, { rol: rolFinal });
+    }
+
     const token = jwt.sign(
-      { id: usuario.id, rol: usuario.rol },
+      { id: usuario.id, rol: rolFinal },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -192,7 +254,7 @@ class AuthService {
         id: usuario.id,
         nombreCompleto: usuario.nombreCompleto,
         correo: usuario.correo,
-        rol: usuario.rol,
+        rol: rolFinal,
         fcmToken: usuario.fcmToken,
       },
     };
@@ -366,6 +428,68 @@ class AuthService {
       rol: usuario.rol,
       avatarUrl: usuario.avatarUrl,
     };
+  }
+
+  async ensureAdminExists() {
+    const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    if (!adminEmail) {
+      console.warn('ADMIN_EMAIL no configurado; no se verifica usuario admin.');
+      return null;
+    }
+
+    const existente = await usuarioRepository.buscarPorCorreo(adminEmail);
+    if (existente) {
+      if (existente.rol !== 'admin') {
+        await usuarioRepository.actualizar(existente.id, { rol: 'admin' });
+        console.log(`Se actualizó rol a admin para ${adminEmail}`);
+      } else {
+        console.log(`Usuario admin ya existe: ${adminEmail}`);
+      }
+      return existente;
+    }
+
+    if (!adminPassword) {
+      console.warn('ADMIN_PASSWORD no configurado; no se creó el usuario admin automáticamente.');
+      return null;
+    }
+
+    const contrasenaHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+    try {
+      const nuevo = await usuarioRepository.crear({
+        nombreCompleto: 'Administrador',
+        correo: adminEmail,
+        contrasenaHash,
+        rol: 'admin',
+      });
+      console.log(`Usuario admin creado: ${adminEmail}`);
+      return nuevo;
+    } catch (err) {
+      // Si falla por la constraint CHECK de correo, intentamos actualizar la constraint
+      const constraintName = err.constraint || '';
+      if (constraintName.includes('usuarios_correo_check') || /correo_check/i.test(err.message || '')) {
+        try {
+          const escaped = db.sequelize.escape(adminEmail);
+          const sql = `ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_correo_check; ALTER TABLE usuarios ADD CONSTRAINT usuarios_correo_check CHECK (correo LIKE '%@ids.upchiapas.edu.mx' OR correo LIKE '%@upchiapas.edu.mx' OR correo = ${escaped});`;
+          await db.sequelize.query(sql);
+          console.log('Constraint usuarios_correo_check actualizada para permitir ADMIN_EMAIL.');
+
+          const nuevo2 = await usuarioRepository.crear({
+            nombreCompleto: 'Administrador',
+            correo: adminEmail,
+            contrasenaHash,
+            rol: 'admin',
+          });
+          console.log(`Usuario admin creado después de actualizar constraint: ${adminEmail}`);
+          return nuevo2;
+        } catch (err2) {
+          console.error('Error al actualizar constraint o crear admin:', err2.message || err2);
+          throw err2;
+        }
+      }
+
+      throw err;
+    }
   }
 
   async cerrarSesion(usuarioId, token) {

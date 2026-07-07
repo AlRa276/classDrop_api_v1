@@ -18,7 +18,9 @@ const moderacionIaRoutes = require('./routes/moderacionIa.routes');
 const normasRoutes = require('./routes/normas.routes');
 const politicasRoutes = require('./routes/politica.routes');
 const etapasPublicacionRoutes = require('./routes/etapaPublicacion.routes');
+const debugRoutes = require('./routes/debug.routes');
 const errorHandler = require('./middlewares/errorHandler');
+const authService = require('./services/auth.service');
 
 const app = express();
 
@@ -45,10 +47,20 @@ app.use('/api/v1/moderaciones', moderacionIaRoutes);
 app.use('/api/v1/normas', normasRoutes);
 app.use('/api/v1/politicas', politicasRoutes);
 app.use('/api/v1/etapas', etapasPublicacionRoutes);//etapas de publicacion de archivos
+app.use('/api/v1/debug', debugRoutes);
 // El errorHandler SIEMPRE va después de las rutas
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-});
+
+(async () => {
+  try {
+    await authService.ensureAdminExists();
+  } catch (err) {
+    console.error('Error al asegurar existencia de admin:', err.message || err);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  });
+})();
