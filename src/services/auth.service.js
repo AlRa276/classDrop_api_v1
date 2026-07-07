@@ -1,7 +1,7 @@
 // src/services/auth.service.js
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer'); // <-- Importamos nodemailer para correos reales
+const nodemailer = require('nodemailer');
 const usuarioRepository = require('../repositories/usuario.repository');
 const tokenRevocadoRepository = require('../repositories/tokenRevocado.repository');
 const { hashToken } = require('../utils/tokenHash');
@@ -10,14 +10,14 @@ const DOMINIO_VALIDO = '@ids.upchiapas.edu.mx';
 const DOMINIO_VALIDO_2 = '@it2id.upchiapas.edu.mx';
 const SALT_ROUNDS = 10;
 
-// Configuración del transportador de correos (Se lee de las variables de entorno)
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // 👈 Al dejar SOLO service: 'gmail', Nodemailer configura host y puertos en automático
+  service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD,
   },
 });
+
 class AuthService {
   async registrar({ nombreCompleto, correo, contrasena }) {
     if (!correo.toLowerCase().endsWith(DOMINIO_VALIDO) && !correo.toLowerCase().endsWith(DOMINIO_VALIDO_2)) {
@@ -92,18 +92,15 @@ class AuthService {
       throw error;
     }
   
-    let usuarioActualizado = usuario;
     if (fmcToken) {
-      usuarioActualizado = await usuarioRepository.actualizar(usuario.id, { fmcToken });
+      await usuarioRepository.actualizar(usuario.id, { fcmToken });
     }
   
-    // 🛡️ REVISIÓN DIRECTA DEL DISPOSITIVO DE CONFIANZA (Para todos los usuarios):
-    if (rememberMe && usuario.rememberToken) {
-      // Verificamos si ese token sigue siendo válido
+    // 🛡️ REVISIÓN DEL PERIODO DE 7 DÍAS
+    if (usuario.rememberToken) {
       const isValidToken = jwt.verify(usuario.rememberToken, process.env.JWT_SECRET, (err) => !err);
       
       if (isValidToken) {
-        // 🎉 ¡Dispositivo de confianza! Entra directo sin código al Home
         const token = jwt.sign(
           { id: usuario.id, rol: usuario.rol },
           process.env.JWT_SECRET,
@@ -122,7 +119,7 @@ class AuthService {
       }
     }
 
-    // 🛑 No es dispositivo de confianza o es la primera vez: OBLIGATORIO se genera y envía código por correo
+    // 🛑 Código obligatorio por correo si expiró o es primera vez
     const codigoLogin = Math.floor(100000 + Math.random() * 900000).toString();
   
     await usuarioRepository.actualizar(usuario.id, {
@@ -135,7 +132,6 @@ class AuthService {
         from: `"Seguridad ClassDrop" <${process.env.EMAIL_USER}>`,
         to: usuario.correo,
         subject: 'Código de verificación de inicio de sesión - ClassDrop',
-        // 👈 AGREGA ESTA LÍNEA (Versión sin HTML):
         text: `Hola ${usuario.nombreCompleto}, tu código de verificación para iniciar sesión en ClassDrop es: ${codigoLogin}`, 
         html: `<p>Hola <b>${usuario.nombreCompleto}</b>,</p>
                <p>Tu código de verificación de doble factor para iniciar sesión es:</p>
@@ -168,7 +164,6 @@ class AuthService {
       throw error;
     }
   
-    // Limpiar el código usado
     await usuarioRepository.actualizar(userId, {
       twoFactorSecret: null,
       two_factor_secret: null
@@ -180,20 +175,19 @@ class AuthService {
       { expiresIn: '7d' }
     );
   
-    // 🔑 GUARDAR PERMISO DE CONFIANZA (Solo si se verificó una vez con código)
     let rememberToken = null;
     if (rememberMe) {
       rememberToken = jwt.sign(
         { id: usuario.id },
         process.env.JWT_SECRET,
-        { expiresIn: '30d' } // Válido por 30 días
+        { expiresIn: '7d' } // 👈 Configurado a 7 días para cumplir tu regla exacta
       );
       await usuarioRepository.actualizar(userId, { rememberToken });
     }
   
     return {
       token,
-      rememberToken, // Este lo guarda Android localmente para futuros inicios
+      rememberToken,
       usuario: {
         id: usuario.id,
         nombreCompleto: usuario.nombreCompleto,
@@ -204,7 +198,6 @@ class AuthService {
     };
   }
 
-  // --- GENERAR CÓDIGO DE ACTIVACIÓN Y ENVIAR AL CORREO REGISTRADO ---
   async generarEstructura2FA(usuarioId) {
     const usuario = await usuarioRepository.buscarPorId(usuarioId);
     if (!usuario) {
@@ -220,26 +213,22 @@ class AuthService {
       two_factor_secret: codigoCorreo 
     });
 
-    // Enviar el correo real con el código de activación
     await transporter.sendMail({
       from: `"Seguridad ClassDrop" <${process.env.EMAIL_USER}>`,
       to: usuario.correo,
-      subject: 'Código de verificación de inicio de sesión - ClassDrop',
-      // 👈 AGREGA ESTA LÍNEA (Versión sin HTML):
-      text: `Hola ${usuario.nombreCompleto}, tu código de verificación para iniciar sesión en ClassDrop es: ${codigoLogin}`, 
+      subject: 'Código de activación 2FA - ClassDrop',
+      text: `Hola ${usuario.nombreCompleto}, tu código de activación es: ${codigoCorreo}`, 
       html: `<p>Hola <b>${usuario.nombreCompleto}</b>,</p>
-             <p>Tu código de verificación de doble factor para iniciar sesión es:</p>
-             <h2>${codigoLogin}</h2>
-             <p>Este código vencerá pronto. Si no solicitaste este acceso, cambia tu contraseña.</p>`
+             <p>Tu código de activación de doble factor es:</p>
+             <h2>${codigoCorreo}</h2>`
     });
 
     return {
       success: true,
-      mensaje: `Se ha enviado un código de verificación real a tu correo institucional (${usuario.correo}).`
+      mensaje: `Se ha enviado un código de verificación real a tu correo institucional.`
     };
   }
 
-  // --- COMPROBACIÓN ESTRICTA PARA ACTIVAR EL INTERRUPTOR ---
   async activar2FA(usuarioId, tokenVerificacion) {
     const usuario = await usuarioRepository.buscarPorId(usuarioId);
     if (!usuario) {
@@ -256,7 +245,6 @@ class AuthService {
       throw error;
     }
 
-    // Activamos formalmente el doble factor
     await usuarioRepository.actualizar(usuarioId, {
       isTwoFactorEnabled: true,
       is_two_factor_enabled: true,
@@ -270,10 +258,6 @@ class AuthService {
     };
   }
 
-  // =========================================================================
-  // 🔒 --- MÉTODOS COMPLETOS PARA LA RECUPERACIÓN DE CONTRASEÑA ---
-  // =========================================================================
-
   async solicitarRecuperacion(correo) {
     const usuario = await usuarioRepository.buscarPorCorreo(correo.toLowerCase());
     if (!usuario) {
@@ -283,7 +267,7 @@ class AuthService {
     }
 
     const codigo = Math.floor(100000 + Math.random() * 900000).toString();
-    const expira = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos de validez
+    const expira = new Date(Date.now() + 15 * 60 * 1000);
 
     await usuarioRepository.actualizar(usuario.id, {
       tokenRecuperacion: codigo,
@@ -295,16 +279,14 @@ class AuthService {
     await transporter.sendMail({
       from: `"Seguridad ClassDrop" <${process.env.EMAIL_USER}>`,
       to: usuario.correo,
-      subject: 'Código de verificación de inicio de sesión - ClassDrop',
-      // 👈 AGREGA ESTA LÍNEA (Versión sin HTML):
-      text: `Hola ${usuario.nombreCompleto}, tu código de verificación para iniciar sesión en ClassDrop es: ${codigoLogin}`, 
+      subject: 'Recuperación de contraseña - ClassDrop',
+      text: `Hola ${usuario.nombreCompleto}, tu código de recuperación es: ${codigo}`, 
       html: `<p>Hola <b>${usuario.nombreCompleto}</b>,</p>
-             <p>Tu código de verificación de doble factor para iniciar sesión es:</p>
-             <h2>${codigoLogin}</h2>
-             <p>Este código vencerá pronto. Si no solicitaste este acceso, cambia tu contraseña.</p>`
+             <p>Tu código para restablecer tu contraseña es:</p>
+             <h2>${codigo}</h2>`
     });
 
-    return { success: true, mensaje: 'Código de recuperación enviado con éxito al correo institucional.' };
+    return { success: true, mensaje: 'Código de recuperación enviado con éxito al correo.' };
   }
 
   async verificarCodigoRecuperacion(correo, token) {
@@ -330,7 +312,7 @@ class AuthService {
       throw error;
     }
 
-    return { success: true, mensaje: 'Código verificado con éxito. Procede a cambiar tu contraseña.' };
+    return { success: true, mensaje: 'Código verificado con éxito.' };
   }
 
   async restablecerContrasena(correo, token, nuevaContrasena) {
