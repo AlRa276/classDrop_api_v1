@@ -39,7 +39,10 @@ class ReporteRepository {
         {
           model: Comentario,
           as: 'comentario',
-          include: [{ model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] }],
+          include: [
+            { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] },
+            { model: Archivo, as: 'archivo', attributes: ['id', 'titulo'] },
+          ],
         },
       ],
       order: [['creado_en', 'ASC']],

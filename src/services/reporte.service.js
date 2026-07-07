@@ -52,7 +52,24 @@ class ReporteService {
   }
 
   async listarPendientes() {
-    return await reporteRepository.listarPendientes();
+    const reportes = await reporteRepository.listarPendientes();
+
+    // El include anidado (archivo/comentario) no trae los contadores
+    // calculados (esos son subconsultas que solo arma archivo.repository.js /
+    // comentario.repository.js en sus propias consultas). Los agregamos aquí
+    // reutilizando los repositorios de dislikes que ya existen, para que el
+    // front pueda mostrar "cuántos dislikes tiene" sin pedirlo aparte.
+    return await Promise.all(
+      reportes.map(async (reporte) => {
+        const plano = reporte.toJSON();
+        if (plano.tipoContenido === 'archivo' && plano.archivoId) {
+          plano.totalDislikes = await dislikeArchivoRepository.contarPorArchivo(plano.archivoId);
+        } else if (plano.tipoContenido === 'comentario' && plano.comentarioId) {
+          plano.totalDislikes = await dislikeComentarioRepository.contarPorComentario(plano.comentarioId);
+        }
+        return plano;
+      })
+    );
   }
 
   // El admin resuelve un reporte (manual o automático por dislikes) con UNA
