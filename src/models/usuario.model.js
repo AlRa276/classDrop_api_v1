@@ -1,3 +1,4 @@
+// src/models/usuario.js
 const { Model, DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
@@ -41,19 +42,30 @@ module.exports = (sequelize) => {
             allowNull: true,
             field: 'fcm_token'
         },
-        // ✅ NUEVA COLUMNA: Mapea el código secreto temporal del correo
+        // ✉️ Mapea el código de 6 dígitos que se manda al correo para iniciar sesión
         twoFactorSecret: {
             type: DataTypes.STRING(6),
             allowNull: true,
-            field: 'two_factor_secret' // <-- Con esto Sequelize sabe escribir en tu columna de Railway
+            field: 'two_factor_secret'
         },
-        // ✅ NUEVA COLUMNA: Mapea el interruptor que activa el 2FA
-        isTwoFactorEnabled: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false,
-            field: 'is_two_factor_enabled' // <-- Une tu variable con la de Railway
+        // 🔑 NUEVA COLUMNA ESENCIAL: Mapea el token de confianza que dura 30 días en el celular
+        rememberToken: {
+            type: DataTypes.TEXT, // Usamos TEXT porque los JWT de 30 días son cadenas muy largas
+            allowNull: true,
+            field: 'remember_token'
+        },
+        // 🔒 Recuperación de contraseña: Código temporal de 6 dígitos
+        tokenRecuperacion: {
+            type: DataTypes.STRING(6),
+            allowNull: true,
+            field: 'token_recuperacion'
+        },
+        // ⏳ Recuperación de contraseña: Fecha y hora en la que expira el código
+        tokenRecuperacionExpira: {
+            type: DataTypes.DATE,
+            allowNull: true,
+            field: 'token_recuperacion_expira'
         }
-
     }, {
         sequelize,
         modelName: 'Usuario',

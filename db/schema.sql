@@ -21,7 +21,11 @@ CREATE TABLE usuarios (
     activo          BOOLEAN      NOT NULL DEFAULT TRUE,
     fmc_token       TEXT,
     two_factor_secret   VARCHAR(6),
-    is_two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE
+    is_two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    remember_token TEXT NULL,
+    token_recuperacion VARCHAR(6) NULL,
+    token_recuperacion_expira TIMESTAMP NULL
+
 
 );
 

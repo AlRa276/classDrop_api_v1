@@ -51,8 +51,11 @@ class AuthController {
 
   async login2FA(req, res, next) {
     try {
-      const { userId, token } = req.body;
-      const resultado = await authService.login2FA(userId, token);
+      // 🛠️ FIJATE AQUÍ: Cambié "token" por "tokenVerificacion" para que coincida con tu Postman
+      const { userId, tokenVerificacion, rememberMe } = req.body;
+      
+      // Pasamos tokenVerificacion de forma correcta al servicio
+      const resultado = await authService.login2FA(userId, tokenVerificacion, rememberMe);
       return ok(res, resultado);
     } catch (err) {
       next(err);
@@ -61,7 +64,6 @@ class AuthController {
 
   async generar2FA(req, res, next) {
     try {
-      // Regresa a leer dinámicamente del token inyectado
       const resultado = await authService.generarEstructura2FA(req.usuario.id);
       return ok(res, resultado);
     } catch (err) {
@@ -71,8 +73,8 @@ class AuthController {
 
   async activar2FA(req, res, next) {
     try {
-      const { token } = req.body;
-      const resultado = await authService.activar2FA(req.usuario.id, token);
+      const { tokenVerificacion } = req.body;
+      const resultado = await authService.activar2FA(req.usuario.id, tokenVerificacion);
       return ok(res, resultado);
     } catch (err) {
       next(err);

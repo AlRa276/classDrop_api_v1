@@ -1,20 +1,16 @@
 // src/config/db.js
 const { Sequelize } = require('sequelize');
 
-const databaseUrl = process.env.DATABASE_URL;
+// Metemos la URL pública real directo como texto para asegurar que la lea:
+const urlPublica = 'postgresql://postgres:zeqpjqAkyfewoWJqikDvdFFJzAWdlHpr@hayabusa.proxy.rlwy.net:42946/railway';
 
-if (!databaseUrl) {
-  console.error("❌ [ERROR CRÍTICO] La variable DATABASE_URL está vacía en tu archivo .env");
-  process.exit(1); 
-}
-
-const sequelize = new Sequelize(databaseUrl, {
+const sequelize = new Sequelize(urlPublica, {
   dialect: 'postgres',
-  logging: false,
+  logging: console.log, // 👈 Activamos esto para ver qué está haciendo en la consola
   dialectOptions: {
     ssl: {
       require: true,
-      rejectUnauthorized: false // Esto soluciona tu error de "The server does not support SSL connections"
+      rejectUnauthorized: false
     }
   }
 });
