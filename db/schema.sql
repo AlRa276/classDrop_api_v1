@@ -206,6 +206,16 @@ CREATE TABLE etapas_publicacion (
     UNIQUE (archivo_id, etapa)
 );
  
+CREATE TABLE IF NOT EXISTS notificaciones (
+    id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    usuario_id  UUID         NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    titulo      VARCHAR(150) NOT NULL,
+    cuerpo      TEXT         NOT NULL,
+    tipo        VARCHAR(30)  NOT NULL DEFAULT 'info',
+    archivo_id  UUID         REFERENCES archivos(id) ON DELETE SET NULL,
+    leida       BOOLEAN      NOT NULL DEFAULT FALSE,
+    creado_en   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
 
 
 -- vistas
@@ -329,3 +339,5 @@ CREATE INDEX idx_materias_cuatrimestre   ON materias(cuatrimestre_id);
 CREATE INDEX idx_tokens_revocados_expira_en ON tokens_revocados(expira_en);
 CREATE INDEX idx_politicas_categoria ON politicas(categoria);
 CREATE INDEX idx_etapas_publicacion_archivo ON etapas_publicacion(archivo_id);
+CREATE INDEX idx_notificaciones_usuario ON notificaciones(usuario_id);
+CREATE INDEX idx_notificaciones_usuario_leida ON notificaciones(usuario_id, leida);

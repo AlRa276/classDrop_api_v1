@@ -18,6 +18,7 @@ const moderacionIaRoutes = require('./routes/moderacionIa.routes');
 const normasRoutes = require('./routes/normas.routes');
 const politicasRoutes = require('./routes/politica.routes');
 const etapasPublicacionRoutes = require('./routes/etapaPublicacion.routes');
+const notificacionesRoutes = require('./routes/notificaciones.routes');
 const debugRoutes = require('./routes/debug.routes');
 const errorHandler = require('./middlewares/errorHandler');
 const authService = require('./services/auth.service');
@@ -47,6 +48,7 @@ app.use('/api/v1/moderaciones', moderacionIaRoutes);
 app.use('/api/v1/normas', normasRoutes);
 app.use('/api/v1/politicas', politicasRoutes);
 app.use('/api/v1/etapas', etapasPublicacionRoutes);//etapas de publicacion de archivos
+app.use('/api/v1/notificaciones', notificacionesRoutes);
 app.use('/api/v1/debug', debugRoutes);
 // El errorHandler SIEMPRE va después de las rutas
 app.use(errorHandler);

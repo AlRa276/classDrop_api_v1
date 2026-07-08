@@ -4,7 +4,7 @@ const materiaRepository = require('../repositories/materia.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
 const etapaPublicacionService = require('./etapaPublicacion.service');
 const moderacionIaClient = require('./moderacionIa.client');
-const { sendPushNotification } = require('./notificacion.service');
+const { notificarUsuario } = require('./notificacion.service');
 
 const FORMATO_PERMITIDO = ['pdf', 'png', 'jpg', 'c'];
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
@@ -96,26 +96,30 @@ class ArchivoService {
 
     // 3. LÓGICA DE NOTIFICACIÓN
     // Solo enviamos si el estado es 'publicado' o 'rechazado'
-    if (estado === 'publicado' || estado === 'rechazado') {
+  if (estado === 'publicado' || estado === 'rechazado') {
       try {
-        // Buscamos al dueño del archivo para obtener su FcmToken
         const usuarioPropietario = await usuarioRepository.buscarPorId(archivo.subidoPor);
-        console.log('DEBUG: Intentando notificar a usuario:', usuarioPropietario?.correo);
-        console.log('DEBUG: Token encontrado:', usuarioPropietario?.fcmToken);
-        
-        if (usuarioPropietario && usuarioPropietario.fcmToken) {
+
+        if (usuarioPropietario) {
           const esAprobado = estado === 'publicado';
           const titulo = esAprobado ? '✅ Archivo Aprobado' : '❌ Archivo Rechazado';
           const cuerpo = esAprobado 
             ? `Tu archivo "${archivo.titulo}" ha sido aceptado y ya está público en ClassDrop.` 
             : `Tu archivo "${archivo.titulo}" fue rechazado. Motivo: ${motivoRechazo}`;
 
-          // Disparamos la notificación
-          await sendPushNotification(usuarioPropietario.fcmToken, titulo, cuerpo);
+          // Guarda la notificación en BD (aparece en la pantalla de
+          // notificaciones) y, si hay fcmToken, también manda el push.
+          await notificarUsuario({
+            usuarioId: usuarioPropietario.id,
+            fcmToken: usuarioPropietario.fcmToken,
+            titulo,
+            cuerpo,
+            tipo: esAprobado ? 'exito' : 'error',
+            archivoId: archivo.id,
+          });
         }
       } catch (notifError) {
-        // Capturamos el error para que la actualización del archivo no falle si la notificación falla
-        console.error('Error al enviar notificación push en archivo.service:', notifError);
+        console.error('Error al enviar notificación en archivo.service:', notifError);
       }
     }
 
