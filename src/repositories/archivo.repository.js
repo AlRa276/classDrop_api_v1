@@ -181,6 +181,7 @@ class ArchivoRepository {
       include: [
         { model: Usuario, as: 'autor', attributes: ['id', 'nombreCompleto'] },
         { model: Materia, as: 'materia' },
+        { model: ArchivoAdjunto, as: 'adjuntos' },
       ],
       limit: limite,
       offset,
