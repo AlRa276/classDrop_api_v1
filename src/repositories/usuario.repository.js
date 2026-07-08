@@ -26,6 +26,10 @@ class UsuarioRepository {
     await usuario.destroy();
     return true;
   }
+
+  async listarAdmins() {
+    return await Usuario.findAll({ where: { rol: 'admin', activo: true } });
+  }
 }
 
 module.exports = new UsuarioRepository();

@@ -125,7 +125,7 @@ class ArchivoService {
 
     return archivo;
   }
-  async crearArchivo({ titulo, descripcion, tipo, subidoPor, materiaId, adjuntos }) {
+async crearArchivo({ titulo, descripcion, tipo, subidoPor, materiaId, adjuntos }) {
     if (!titulo || !materiaId || !subidoPor || !Array.isArray(adjuntos) || adjuntos.length === 0) {
       const error = new Error('Debe completar título, materia, usuario y adjuntar al menos un archivo');
       error.status = 400;
@@ -186,6 +186,35 @@ class ArchivoService {
 
     await archivoAdjuntoRepository.crearMultiples(listaAdjuntos);
     await etapaPublicacionService.inicializar(archivo.id);
+
+    // Avisamos a TODOS los admins de que hay un archivo nuevo esperando
+    // revisión: queda guardado en su pantalla de notificaciones y, si tienen
+    // fcmToken, también les llega el push.
+    // El título "Nuevo archivo pendiente" es a propósito: NotificationsActivity
+    // en Android ya lo detecta (busca "archivo pendiente" en el título) para
+    // llevar al admin directo a la pantalla de moderación al tocarla.
+    try {
+      const admins = await usuarioRepository.listarAdmins();
+      const tituloNotif = 'Nuevo archivo pendiente';
+      const cuerpoNotif = `"${usuario.nombreCompleto}" subió "${archivo.titulo}" a ${materia.nombre}. Está esperando revisión.`;
+
+      await Promise.all(
+        admins.map((admin) =>
+          notificarUsuario({
+            usuarioId: admin.id,
+            fcmToken: admin.fcmToken,
+            titulo: tituloNotif,
+            cuerpo: cuerpoNotif,
+            tipo: 'advertencia',
+            archivoId: archivo.id,
+          })
+        )
+      );
+    } catch (notifError) {
+      // No dejamos que un fallo al notificar tumbe la subida del archivo.
+      console.error('Error al notificar a los admins sobre archivo pendiente:', notifError);
+    }
+
     return archivo;
   }
 
