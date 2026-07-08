@@ -102,7 +102,7 @@ class ArchivoService {
 
         if (usuarioPropietario) {
           const esAprobado = estado === 'publicado';
-          const titulo = esAprobado ? '✅ Archivo Aprobado' : '❌ Archivo Rechazado';
+          const titulo = esAprobado ? 'Archivo Aprobado' : 'Archivo Rechazado';
           const cuerpo = esAprobado 
             ? `Tu archivo "${archivo.titulo}" ha sido aceptado y ya está público en ClassDrop.` 
             : `Tu archivo "${archivo.titulo}" fue rechazado. Motivo: ${motivoRechazo}`;
