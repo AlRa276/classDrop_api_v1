@@ -57,6 +57,11 @@ function atributosDeModeracion(usuarioActualId) {
     include: [
       ...base.include,
       [Sequelize.literal(`fn_nivel_riesgo_archivo("Archivo"."id")`), 'nivelRiesgo'],
+      // ESTA ES LA LÍNEA MÁGICA: trae el motivo de la tabla moderaciones_ia
+      [
+        Sequelize.literal(`(SELECT motivo_flag FROM moderaciones_ia WHERE moderaciones_ia.archivo_id = "Archivo"."id" LIMIT 1)`),
+        'motivoFlag'
+      ],
     ],
   };
 }
