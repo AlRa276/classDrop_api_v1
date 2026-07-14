@@ -187,35 +187,108 @@ async crearArchivo({ titulo, descripcion, tipo, subidoPor, materiaId, adjuntos }
     await archivoAdjuntoRepository.crearMultiples(listaAdjuntos);
     await etapaPublicacionService.inicializar(archivo.id);
 
-    // Avisamos a TODOS los admins de que hay un archivo nuevo esperando
-    // revisión: queda guardado en su pantalla de notificaciones y, si tienen
-    // fcmToken, también les llega el push.
-    // El título "Nuevo archivo pendiente" es a propósito: NotificationsActivity
-    // en Android ya lo detecta (busca "archivo pendiente" en el título) para
-    // llevar al admin directo a la pantalla de moderación al tocarla.
-    try {
-      const admins = await usuarioRepository.listarAdmins();
-      const tituloNotif = 'Nuevo archivo pendiente';
-      const cuerpoNotif = `"${usuario.nombreCompleto}" subió "${archivo.titulo}" a ${materia.nombre}. Está esperando revisión.`;
+    // --- Moderación automática con el microservicio de IA ---
+    // Se analiza el archivo apenas se sube. Según el veredicto:
+    //  - 'rechazar' -> se rechaza automáticamente, sin esperar a un admin.
+    //  - 'aprobar'  -> se publica automáticamente (alta confianza de la IA).
+    //  - 'revisar' (ambiguo, o el microservicio no respondió) -> sigue el
+    //    flujo normal a la cola de admins, pero con el motivo real de la IA
+    //    guardado como contexto (en vez del texto genérico de siempre).
+    const primerAdjunto = listaAdjuntos[0];
+    let veredictoFinal = null;
+    let motivoIa = null;
 
-      await Promise.all(
-        admins.map((admin) =>
-          notificarUsuario({
-            usuarioId: admin.id,
-            fcmToken: admin.fcmToken,
-            titulo: tituloNotif,
-            cuerpo: cuerpoNotif,
-            tipo: 'advertencia',
+    try {
+      const resultadoModeracion = await moderacionIaClient.moderarArchivo({
+        archivoId: archivo.id,
+        titulo: archivo.titulo,
+        descripcion: archivo.descripcion,
+        nombreArchivo: primerAdjunto.nombreOriginal,
+        tipoMime: primerAdjunto.tipoMime,
+        tamanoBytes: primerAdjunto.tamanoBytes,
+        urlArchivo: primerAdjunto.urlStorage,
+      });
+
+      veredictoFinal = resultadoModeracion.veredictoFinal;
+      motivoIa = resultadoModeracion.motivo || null;
+
+      // Guarda el desglose completo (riesgo + niveles ejecutados) sin importar
+      // el veredicto, para que quede como historial/auditoría.
+      await archivoRepository.guardarResultadoIa(archivo.id, {
+        puntajeRiesgo: resultadoModeracion.puntajeRiesgo,
+        nivelesEjecutados: resultadoModeracion.nivelesEjecutados,
+      });
+
+      if (veredictoFinal === 'rechazar') {
+        await archivoRepository.actualizarEstado(
+          archivo.id,
+          'rechazado',
+          motivoIa || 'Rechazado automáticamente por el sistema de moderación.'
+        );
+      } else if (veredictoFinal === 'aprobar') {
+        await archivoRepository.actualizarEstado(archivo.id, 'publicado');
+      } else {
+        // 'revisar': se queda pendiente, pero con el motivo real de la IA
+        // guardado en motivo_rechazo como contexto para el admin.
+        if (motivoIa) {
+          await archivo.update({ motivoRechazo: motivoIa });
+        }
+      }
+
+      // Si la IA decidió por su cuenta (aprobar o rechazar), avisamos al
+      // estudiante igual que cuando lo hace un admin manualmente.
+      if (veredictoFinal === 'rechazar' || veredictoFinal === 'aprobar') {
+        try {
+          const esAprobado = veredictoFinal === 'aprobar';
+          await notificarUsuario({
+            usuarioId: usuario.id,
+            fcmToken: usuario.fcmToken,
+            titulo: esAprobado ? '✅ Archivo Aprobado' : '❌ Archivo Rechazado',
+            cuerpo: esAprobado
+              ? `Tu archivo "${archivo.titulo}" ha sido aceptado y ya está público en ClassDrop.`
+              : `Tu archivo "${archivo.titulo}" fue rechazado. Motivo: ${motivoIa || 'No cumple con las normas de la plataforma.'}`,
+            tipo: esAprobado ? 'exito' : 'error',
             archivoId: archivo.id,
-          })
-        )
-      );
-    } catch (notifError) {
-      // No dejamos que un fallo al notificar tumbe la subida del archivo.
-      console.error('Error al notificar a los admins sobre archivo pendiente:', notifError);
+          });
+        } catch (notifError) {
+          console.error('Error al notificar resultado de moderación automática:', notifError);
+        }
+      }
+    } catch (moderacionError) {
+      // moderarArchivo() ya atrapa sus propios errores y devuelve 'revisar' por
+      // defecto, así que esto solo cubre algo realmente inesperado. El archivo
+      // sigue su flujo normal: se queda 'pendiente' para revisión humana.
+      console.error('Error inesperado llamando al microservicio de moderación:', moderacionError);
     }
 
-    return archivo;
+    // Solo avisamos a los admins si el archivo SIGUE necesitando revisión
+    // humana (la IA no lo aprobó ni lo rechazó automáticamente).
+    if (veredictoFinal !== 'rechazar' && veredictoFinal !== 'aprobar') {
+      try {
+        const admins = await usuarioRepository.listarAdmins();
+        const tituloNotif = '📥 Nuevo archivo pendiente';
+        const cuerpoNotif = `"${usuario.nombreCompleto}" subió "${archivo.titulo}" a ${materia.nombre}. Está esperando revisión.`;
+
+        await Promise.all(
+          admins.map((admin) =>
+            notificarUsuario({
+              usuarioId: admin.id,
+              fcmToken: admin.fcmToken,
+              titulo: tituloNotif,
+              cuerpo: cuerpoNotif,
+              tipo: 'advertencia',
+              archivoId: archivo.id,
+            })
+          )
+        );
+      } catch (notifError) {
+        console.error('Error al notificar a los admins sobre archivo pendiente:', notifError);
+      }
+    }
+
+    // Devolvemos el estado FINAL (ya con el veredicto de la IA aplicado),
+    // no el objeto viejo en memoria que seguía diciendo estado: 'pendiente'.
+    return await archivoRepository.buscarPorId(archivo.id, subidoPor);
   }
 
   async obtenerPorId(id, usuarioActualId) {
