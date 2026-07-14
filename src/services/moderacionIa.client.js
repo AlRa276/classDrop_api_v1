@@ -3,7 +3,7 @@
 
 const MODERATION_SERVICE_URL = process.env.MODERATION_SERVICE_URL; // ej. https://tu-servicio.up.railway.app
 const MODERATION_API_KEY = process.env.MODERATION_API_KEY;
-const TIMEOUT_MS = 20000; // el Nivel 3 (DistilBERT) puede tardar unos segundos
+const TIMEOUT_MS = 180000; // el Nivel 3 (DistilBERT) puede tardar unos segundos
 
 class ModeracionIaClient {
   /**

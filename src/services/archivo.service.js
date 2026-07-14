@@ -188,14 +188,38 @@ async crearArchivo({ titulo, descripcion, tipo, subidoPor, materiaId, adjuntos }
     await archivoAdjuntoRepository.crearMultiples(listaAdjuntos);
     await etapaPublicacionService.inicializar(archivo.id);
 
-    // --- Moderación automática con el microservicio de IA ---
-    // Se analiza el archivo apenas se sube. Según el veredicto:
-    //  - 'rechazar' -> se rechaza automáticamente, sin esperar a un admin.
-    //  - 'aprobar'  -> se publica automáticamente (alta confianza de la IA).
-    //  - 'revisar' (ambiguo, o el microservicio no respondió) -> sigue el
-    //    flujo normal a la cola de admins, pero con el motivo real de la IA
-    //    guardado como contexto (en vez del texto genérico de siempre).
-    const primerAdjunto = listaAdjuntos[0];
+    analyticsService.registrarEvento({
+      usuarioId: usuario.id,
+      nombreEvento: 'subir_archivo',
+      params: {
+        materia: materia.nombre,
+        tipo_archivo: tipo,
+      },
+    });
+
+    // La moderación con IA puede tardar MINUTOS (el Nivel 3 corre modelos
+    // DistilBERT en CPU). Para que el estudiante no se quede esperando (y para
+    // que Android no truene su propio timeout de red), la disparamos en
+    // SEGUNDO PLANO, sin "await": esta función responde de inmediato con el
+    // archivo recién creado (estado 'pendiente'). El veredicto de la IA se
+    // aplica después, cuando llegue, sin bloquear esta petición.
+    this._moderarEnSegundoPlano({
+      archivo,
+      primerAdjunto: listaAdjuntos[0],
+      usuario,
+      materia,
+    }).catch((err) => {
+      console.error('Error inesperado en moderación en segundo plano:', err);
+    });
+
+    return archivo;
+  }
+
+  // Corre el análisis del microservicio de IA DESPUÉS de haberle respondido
+  // al cliente, y aplica el veredicto cuando llegue (en segundos o minutos).
+  // Nunca lanza hacia afuera: cualquier error queda solo en el log, sin
+  // afectar nada más (el archivo ya se creó y ya se le respondió al usuario).
+  async _moderarEnSegundoPlano({ archivo, primerAdjunto, usuario, materia }) {
     let veredictoFinal = null;
     let motivoIa = null;
 
@@ -213,8 +237,6 @@ async crearArchivo({ titulo, descripcion, tipo, subidoPor, materiaId, adjuntos }
       veredictoFinal = resultadoModeracion.veredictoFinal;
       motivoIa = resultadoModeracion.motivo || null;
 
-      // Guarda el desglose completo (riesgo + niveles ejecutados) sin importar
-      // el veredicto, para que quede como historial/auditoría.
       await archivoRepository.guardarResultadoIa(archivo.id, {
         puntajeRiesgo: resultadoModeracion.puntajeRiesgo,
         nivelesEjecutados: resultadoModeracion.nivelesEjecutados,
@@ -244,7 +266,7 @@ async crearArchivo({ titulo, descripcion, tipo, subidoPor, materiaId, adjuntos }
           await notificarUsuario({
             usuarioId: usuario.id,
             fcmToken: usuario.fcmToken,
-            titulo: esAprobado ? '✅ Archivo Aprobado' : '❌ Archivo Rechazado',
+            titulo: esAprobado ? 'Archivo Aprobado' : 'Archivo Rechazado',
             cuerpo: esAprobado
               ? `Tu archivo "${archivo.titulo}" ha sido aceptado y ya está público en ClassDrop.`
               : `Tu archivo "${archivo.titulo}" fue rechazado. Motivo: ${motivoIa || 'No cumple con las normas de la plataforma.'}`,
@@ -257,27 +279,16 @@ async crearArchivo({ titulo, descripcion, tipo, subidoPor, materiaId, adjuntos }
       }
     } catch (moderacionError) {
       // moderarArchivo() ya atrapa sus propios errores y devuelve 'revisar' por
-      // defecto, así que esto solo cubre algo realmente inesperado. El archivo
-      // sigue su flujo normal: se queda 'pendiente' para revisión humana.
+      // defecto, así que esto solo cubre algo realmente inesperado.
       console.error('Error inesperado llamando al microservicio de moderación:', moderacionError);
     }
-
-    analyticsService.registrarEvento({
-      usuarioId: usuario.id,
-      nombreEvento: 'subir_archivo',
-      params: {
-        materia: materia.nombre,
-        tipo_archivo: tipo,
-        veredicto_ia: veredictoFinal || 'sin_evaluar',
-      },
-    });
 
     // Solo avisamos a los admins si el archivo SIGUE necesitando revisión
     // humana (la IA no lo aprobó ni lo rechazó automáticamente).
     if (veredictoFinal !== 'rechazar' && veredictoFinal !== 'aprobar') {
       try {
         const admins = await usuarioRepository.listarAdmins();
-        const tituloNotif = '📥 Nuevo archivo pendiente';
+        const tituloNotif = 'Nuevo archivo pendiente';
         const cuerpoNotif = `"${usuario.nombreCompleto}" subió "${archivo.titulo}" a ${materia.nombre}. Está esperando revisión.`;
 
         await Promise.all(
@@ -296,10 +307,6 @@ async crearArchivo({ titulo, descripcion, tipo, subidoPor, materiaId, adjuntos }
         console.error('Error al notificar a los admins sobre archivo pendiente:', notifError);
       }
     }
-
-    // Devolvemos el estado FINAL (ya con el veredicto de la IA aplicado),
-    // no el objeto viejo en memoria que seguía diciendo estado: 'pendiente'.
-    return await archivoRepository.buscarPorId(archivo.id, subidoPor);
   }
 
   async obtenerPorId(id, usuarioActualId) {
