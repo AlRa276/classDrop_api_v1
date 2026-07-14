@@ -6,6 +6,7 @@ const usuarioRepository = require('../repositories/usuario.repository');
 const tokenRevocadoRepository = require('../repositories/tokenRevocado.repository');
 const { hashToken } = require('../utils/tokenHash');
 const db = require('../models');
+const analyticsService = require('./analytics.service');
 
 const DOMINIO_VALIDO = '@ids.upchiapas.edu.mx';
 const DOMINIO_VALIDO_2 = '@it2id.upchiapas.edu.mx';
@@ -122,13 +123,19 @@ class AuthService {
       await usuarioRepository.actualizar(usuario.id, { rol: rolFinal });
     }
 
-    // Si el correo es el ADMIN_EMAIL, omitimos 2FA y devolvemos el token directamente
+   // Si el correo es el ADMIN_EMAIL, omitimos 2FA y devolvemos el token directamente
     if (esCorreoAdmin(correoNormalizado)) {
       const token = jwt.sign(
         { id: usuario.id, rol: 'admin' },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
       );
+
+      analyticsService.registrarEvento({ 
+        usuarioId: usuario.id, nombreEvento: 
+        'login', params: { 
+          metodo: 'admin_directo' 
+        } });
 
       let rememberToken = null;
       if (rememberMe) {
@@ -153,7 +160,7 @@ class AuthService {
       };
     }
 
-    // 🛡️ REVISIÓN DEL PERIODO DE 7 DÍAS
+    //REVISIÓN DEL PERIODO DE 7 DÍAS
     if (usuario.rememberToken) {
       const isValidToken = jwt.verify(usuario.rememberToken, process.env.JWT_SECRET, (err) => !err);
       
@@ -163,6 +170,9 @@ class AuthService {
           process.env.JWT_SECRET,
           { expiresIn: '7d' }
         );
+
+        analyticsService.registrarEvento({ usuarioId: usuario.id, nombreEvento: 'login', params: { metodo: 'recordado' } });
+
         return {
           token,
           usuario: {
@@ -176,7 +186,7 @@ class AuthService {
       }
     }
 
-    // 🛑 Código obligatorio por correo si expiró o es primera vez
+    //Código obligatorio por correo si expiró o es primera vez
     const codigoLogin = Math.floor(100000 + Math.random() * 900000).toString();
   
     await usuarioRepository.actualizar(usuario.id, {
@@ -236,6 +246,8 @@ class AuthService {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    analyticsService.registrarEvento({ usuarioId: usuario.id, nombreEvento: 'login', params: { metodo: '2fa' } });
   
     let rememberToken = null;
     if (rememberMe) {

@@ -2,6 +2,7 @@ const likeArchivoRepository = require('../repositories/likeArchivo.repository');
 const dislikeArchivoRepository = require('../repositories/dislikeArchivo.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
 const archivoRepository = require('../repositories/archivo.repository');
+const analyticsService = require('./analytics.service');
 
 class LikeArchivoService {
   async darLike(usuarioId, archivoId) {
@@ -32,7 +33,15 @@ class LikeArchivoService {
       await dislikeArchivoRepository.eliminar(usuarioId, archivoId);
     }
 
-    return await likeArchivoRepository.crear(usuarioId, archivoId);
+    const nuevoLike = await likeArchivoRepository.crear(usuarioId, archivoId);
+
+    analyticsService.registrarEvento({
+      usuarioId,
+      nombreEvento: 'like_archivo',
+      params: { archivo_id: archivoId },
+    });
+
+    return nuevoLike;
   }
 
   async quitarLike(usuarioId, archivoId) {

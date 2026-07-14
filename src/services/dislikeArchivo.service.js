@@ -3,6 +3,7 @@ const likeArchivoRepository = require('../repositories/likeArchivo.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
 const archivoRepository = require('../repositories/archivo.repository');
 const reporteRepository = require('../repositories/reporte.repository');
+const analyticsService = require('./analytics.service');
 
 // Al llegar a este número de dislikes, el archivo se oculta automáticamente
 // de los estudiantes y pasa a la cola de reportes para que un admin decida.
@@ -38,6 +39,12 @@ class DislikeArchivoService {
     }
 
     const dislike = await dislikeArchivoRepository.crear(usuarioId, archivoId);
+
+    analyticsService.registrarEvento({
+      usuarioId,
+      nombreEvento: 'dislike_archivo',
+      params: { archivo_id: archivoId },
+    });
 
     // El archivo llega al umbral: se oculta y se manda a revisión de admin.
     // Arriba ya validamos que archivo.estado === 'publicado', así que esto

@@ -1,6 +1,7 @@
 const comentarioRepository = require('../repositories/comentario.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
 const archivoRepository = require('../repositories/archivo.repository');
+const analyticsService = require('./analytics.service');
 
 const PALABRAS_PROHIBIDAS = ['vulgaridad1', 'vulgaridad2', 'spam'];
 const PATRON_SPAM = /(http:\/\/|https:\/\/|www\.)/i;
@@ -38,7 +39,15 @@ class ComentarioService {
       throw error;
     }
 
-    return await comentarioRepository.crear({ usuarioId, archivoId, contenido });
+    const comentario = await comentarioRepository.crear({ usuarioId, archivoId, contenido });
+
+    analyticsService.registrarEvento({
+      usuarioId,
+      nombreEvento: 'comentar_archivo',
+      params: { archivo_id: archivoId },
+    });
+
+    return comentario;
   }
 
   async listarPorArchivo(archivoId, usuarioId) {

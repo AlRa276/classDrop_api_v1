@@ -2,6 +2,7 @@ const likesComentarioRepository = require('../repositories/likesComentario.repos
 const dislikeComentarioRepository = require('../repositories/dislikeComentario.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
 const comentarioRepository = require('../repositories/comentario.repository');
+const analyticsService = require('./analytics.service');
 
 class LikesComentarioService {
   async darLike(usuarioId, comentarioId) {
@@ -32,7 +33,15 @@ class LikesComentarioService {
       await dislikeComentarioRepository.eliminar(usuarioId, comentarioId);
     }
 
-    return await likesComentarioRepository.crear(usuarioId, comentarioId);
+    const nuevoLike = await likesComentarioRepository.crear(usuarioId, comentarioId);
+
+    analyticsService.registrarEvento({
+      usuarioId,
+      nombreEvento: 'like_comentario',
+      params: { comentario_id: comentarioId },
+    });
+
+    return nuevoLike;
   }
 
   async quitarLike(usuarioId, comentarioId) {

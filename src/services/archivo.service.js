@@ -5,6 +5,7 @@ const usuarioRepository = require('../repositories/usuario.repository');
 const etapaPublicacionService = require('./etapaPublicacion.service');
 const moderacionIaClient = require('./moderacionIa.client');
 const { notificarUsuario } = require('./notificacion.service');
+const analyticsService = require('./analytics.service');
 
 const FORMATO_PERMITIDO = ['pdf', 'png', 'jpg', 'c'];
 const TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024; // 20 MB
@@ -260,6 +261,16 @@ async crearArchivo({ titulo, descripcion, tipo, subidoPor, materiaId, adjuntos }
       // sigue su flujo normal: se queda 'pendiente' para revisión humana.
       console.error('Error inesperado llamando al microservicio de moderación:', moderacionError);
     }
+
+    analyticsService.registrarEvento({
+      usuarioId: usuario.id,
+      nombreEvento: 'subir_archivo',
+      params: {
+        materia: materia.nombre,
+        tipo_archivo: tipo,
+        veredicto_ia: veredictoFinal || 'sin_evaluar',
+      },
+    });
 
     // Solo avisamos a los admins si el archivo SIGUE necesitando revisión
     // humana (la IA no lo aprobó ni lo rechazó automáticamente).

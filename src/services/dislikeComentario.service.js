@@ -3,6 +3,7 @@ const likesComentarioRepository = require('../repositories/likesComentario.repos
 const usuarioRepository = require('../repositories/usuario.repository');
 const comentarioRepository = require('../repositories/comentario.repository');
 const reporteRepository = require('../repositories/reporte.repository');
+const analyticsService = require('./analytics.service');
 
 // Al llegar a este número de dislikes, el comentario se oculta automáticamente
 // y pasa a la cola de reportes para que un admin decida.
@@ -38,6 +39,12 @@ class DislikeComentarioService {
     }
 
     const dislike = await dislikeComentarioRepository.crear(usuarioId, comentarioId);
+
+    analyticsService.registrarEvento({
+      usuarioId,
+      nombreEvento: 'dislike_comentario',
+      params: { comentario_id: comentarioId },
+    });
 
     // El comentario llega al umbral: se oculta y se manda a revisión de admin.
     // Arriba ya validamos "!comentario.oculto", así que esto solo dispara

@@ -1,6 +1,7 @@
 const guardadosArchivoRepository = require('../repositories/guardadosArchivo.repository');
 const usuarioRepository = require('../repositories/usuario.repository');
 const archivoRepository = require('../repositories/archivo.repository');
+const analyticsService = require('./analytics.service');
 
 class GuardadosArchivoService {
   async guardarArchivo(usuarioId, archivoId) {
@@ -25,7 +26,15 @@ class GuardadosArchivoService {
       throw error;
     }
 
-    return await guardadosArchivoRepository.crear(usuarioId, archivoId);
+    const guardado = await guardadosArchivoRepository.crear(usuarioId, archivoId);
+
+    analyticsService.registrarEvento({
+      usuarioId,
+      nombreEvento: 'guardar_archivo',
+      params: { archivo_id: archivoId },
+    });
+
+    return guardado;
   }
 
   async quitarGuardado(usuarioId, archivoId) {
