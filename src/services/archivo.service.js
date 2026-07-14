@@ -212,7 +212,8 @@ async crearArchivo({ titulo, descripcion, tipo, subidoPor, materiaId, adjuntos }
       console.error('Error inesperado en moderación en segundo plano:', err);
     });
 
-    return archivo;
+
+    return await archivoRepository.buscarPorId(archivo.id, subidoPor);
   }
 
   // Corre el análisis del microservicio de IA DESPUÉS de haberle respondido
