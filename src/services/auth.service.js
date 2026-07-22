@@ -254,7 +254,7 @@ class AuthService {
       rememberToken = jwt.sign(
         { id: usuario.id },
         process.env.JWT_SECRET,
-        { expiresIn: '7d' } // 👈 Configurado a 7 días para cumplir tu regla exacta
+        { expiresIn: '7d' } //Configurado a 7 días para cumplir tu regla exacta
       );
       await usuarioRepository.actualizar(userId, { rememberToken });
     }
